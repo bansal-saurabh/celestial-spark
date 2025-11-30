@@ -1,4 +1,5 @@
 import { Application, Container, Graphics, Text, TextStyle } from 'pixi.js';
+import { isMobileDevice } from '../utils/deviceUtils';
 
 export interface TouchControlsCallbacks {
   onIgnite: () => void;
@@ -26,13 +27,7 @@ export class TouchControls {
     this.app = app;
     this.container = new Container();
     this.callbacks = callbacks;
-    this.isMobile = this.detectMobile();
-  }
-
-  private detectMobile(): boolean {
-    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
-           ('ontouchstart' in window) ||
-           (navigator.maxTouchPoints > 0);
+    this.isMobile = isMobileDevice();
   }
 
   async init(): Promise<void> {

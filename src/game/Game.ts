@@ -6,6 +6,7 @@ import { AsteroidBelt } from './AsteroidBelt';
 import { Comet } from './Comet';
 import { UIOverlay } from '../ui/UIOverlay';
 import { GameState } from './GameState';
+import { isMobileDevice } from '../utils/deviceUtils';
 
 export class Game {
   private canvas: HTMLCanvasElement;
@@ -28,7 +29,7 @@ export class Game {
     this.engine = new Engine(this.canvas, true, { preserveDrawingBuffer: true, stencil: true });
     this.scene = new Scene(this.engine);
     this.gameState = new GameState();
-    this.isMobile = this.detectMobile();
+    this.isMobile = isMobileDevice();
     this.camera = this.createCamera();
     this.starField = new StarField(this.scene);
     this.uiOverlay = new UIOverlay(this.gameState, {
@@ -40,12 +41,6 @@ export class Game {
     });
     this.glowLayer = new GlowLayer('glow', this.scene);
     this.glowLayer.intensity = 0.8;
-  }
-
-  private detectMobile(): boolean {
-    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
-           ('ontouchstart' in window) ||
-           (navigator.maxTouchPoints > 0);
   }
 
   private zoomCamera(delta: number): void {

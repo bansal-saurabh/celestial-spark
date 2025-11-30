@@ -9,7 +9,7 @@ export class AsteroidBelt {
   private asteroidCount: number;
   private orbitSpeeds: number[] = [];
 
-  constructor(scene: Scene, innerRadius: number = 30, outerRadius: number = 35, asteroidCount: number = 200) {
+  constructor(scene: Scene, innerRadius: number = 30, outerRadius: number = 35, asteroidCount: number = 150) {
     this.scene = scene;
     this.innerRadius = innerRadius;
     this.outerRadius = outerRadius;

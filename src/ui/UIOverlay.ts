@@ -3,6 +3,7 @@ import { GameState } from '../game/GameState';
 import type { PlanetInfo } from '../game/ProceduralPlanet';
 import { TouchControls } from './TouchControls';
 import type { TouchControlsCallbacks } from './TouchControls';
+import { isMobileDevice } from '../utils/deviceUtils';
 
 export class UIOverlay {
   private app: Application;
@@ -30,13 +31,7 @@ export class UIOverlay {
     this.controlsPanel = new Container();
     this.notificationContainer = new Container();
     this.helpPanel = new Container();
-    this.isMobile = this.detectMobile();
-  }
-
-  private detectMobile(): boolean {
-    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
-           ('ontouchstart' in window) ||
-           (navigator.maxTouchPoints > 0);
+    this.isMobile = isMobileDevice();
   }
 
   async init(): Promise<void> {
