@@ -61,7 +61,7 @@ export class UIOverlay {
 
     // Initialize touch controls for mobile
     if (this.isMobile) {
-      this.touchControls = new TouchControls(this.app, this.callbacks);
+      this.touchControls = new TouchControls(this.callbacks);
       await this.touchControls.init();
       // Hide desktop controls panel on mobile
       this.controlsPanel.visible = false;

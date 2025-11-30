@@ -1,4 +1,3 @@
-import { Application, Container, Graphics, Text, TextStyle } from 'pixi.js';
 import { isMobileDevice } from '../utils/deviceUtils';
 
 export interface TouchControlsCallbacks {
@@ -10,22 +9,19 @@ export interface TouchControlsCallbacks {
 }
 
 export class TouchControls {
-  private app: Application;
-  private container: Container;
   private callbacks: TouchControlsCallbacks;
   private isVisible: boolean = false;
   private isMobile: boolean = false;
+  private container: HTMLDivElement | null = null;
 
-  // UI Elements
-  private igniteButton: Container | null = null;
-  private resetButton: Container | null = null;
-  private helpButton: Container | null = null;
-  private zoomInButton: Container | null = null;
-  private zoomOutButton: Container | null = null;
+  // UI Elements (now HTML elements)
+  private igniteButton: HTMLButtonElement | null = null;
+  private resetButton: HTMLButtonElement | null = null;
+  private helpButton: HTMLButtonElement | null = null;
+  private zoomInButton: HTMLButtonElement | null = null;
+  private zoomOutButton: HTMLButtonElement | null = null;
 
-  constructor(app: Application, callbacks: TouchControlsCallbacks) {
-    this.app = app;
-    this.container = new Container();
+  constructor(callbacks: TouchControlsCallbacks) {
     this.callbacks = callbacks;
     this.isMobile = isMobileDevice();
   }
@@ -36,19 +32,31 @@ export class TouchControls {
     }
 
     this.isVisible = true;
-    this.container.visible = true;
-    this.container.eventMode = 'static';
+    
+    // Create container div for touch controls
+    this.container = document.createElement('div');
+    this.container.id = 'touch-controls';
+    this.container.style.cssText = `
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 20;
+      pointer-events: none;
+    `;
+    document.getElementById('app')?.appendChild(this.container);
 
     // Create action buttons on the right side
     this.createActionButtons();
 
     // Create zoom controls
     this.createZoomControls();
-
-    this.app.stage.addChild(this.container);
   }
 
   private createActionButtons(): void {
+    if (!this.container) return;
+
     const buttonSize = 60;
     const padding = 20;
     const rightMargin = 20;
@@ -57,38 +65,40 @@ export class TouchControls {
     // Ignite button (primary action)
     this.igniteButton = this.createCircleButton(
       'IGNITE',
-      0xff6600,
+      '#ff6600',
       buttonSize,
       () => this.callbacks.onIgnite()
     );
-    this.igniteButton.x = window.innerWidth - rightMargin - buttonSize;
-    this.igniteButton.y = window.innerHeight - bottomMargin;
-    this.container.addChild(this.igniteButton);
+    this.igniteButton.style.right = `${rightMargin}px`;
+    this.igniteButton.style.bottom = `${bottomMargin}px`;
+    this.container.appendChild(this.igniteButton);
 
     // Reset button
     this.resetButton = this.createCircleButton(
       'R',
-      0x4080ff,
+      '#4080ff',
       buttonSize * 0.7,
       () => this.callbacks.onReset()
     );
-    this.resetButton.x = window.innerWidth - rightMargin - buttonSize * 0.7;
-    this.resetButton.y = window.innerHeight - bottomMargin - buttonSize - padding;
-    this.container.addChild(this.resetButton);
+    this.resetButton.style.right = `${rightMargin + (buttonSize - buttonSize * 0.7) / 2}px`;
+    this.resetButton.style.bottom = `${bottomMargin + buttonSize + padding}px`;
+    this.container.appendChild(this.resetButton);
 
     // Help button
     this.helpButton = this.createCircleButton(
       '?',
-      0x4080ff,
+      '#4080ff',
       buttonSize * 0.7,
       () => this.callbacks.onHelp()
     );
-    this.helpButton.x = window.innerWidth - rightMargin - buttonSize * 0.7;
-    this.helpButton.y = window.innerHeight - bottomMargin - (buttonSize + padding) * 2;
-    this.container.addChild(this.helpButton);
+    this.helpButton.style.right = `${rightMargin + (buttonSize - buttonSize * 0.7) / 2}px`;
+    this.helpButton.style.bottom = `${bottomMargin + (buttonSize + padding) * 2}px`;
+    this.container.appendChild(this.helpButton);
   }
 
   private createZoomControls(): void {
+    if (!this.container) return;
+
     const buttonSize = 50;
     const padding = 10;
     const leftMargin = 20;
@@ -97,101 +107,82 @@ export class TouchControls {
     // Zoom in button
     this.zoomInButton = this.createCircleButton(
       '+',
-      0x4080ff,
+      '#4080ff',
       buttonSize,
       () => this.callbacks.onZoomIn()
     );
-    this.zoomInButton.x = leftMargin + buttonSize;
-    this.zoomInButton.y = window.innerHeight - bottomMargin - buttonSize - padding;
-    this.container.addChild(this.zoomInButton);
+    this.zoomInButton.style.left = `${leftMargin}px`;
+    this.zoomInButton.style.bottom = `${bottomMargin + buttonSize + padding}px`;
+    this.container.appendChild(this.zoomInButton);
 
     // Zoom out button
     this.zoomOutButton = this.createCircleButton(
       '−',
-      0x4080ff,
+      '#4080ff',
       buttonSize,
       () => this.callbacks.onZoomOut()
     );
-    this.zoomOutButton.x = leftMargin + buttonSize;
-    this.zoomOutButton.y = window.innerHeight - bottomMargin;
-    this.container.addChild(this.zoomOutButton);
+    this.zoomOutButton.style.left = `${leftMargin}px`;
+    this.zoomOutButton.style.bottom = `${bottomMargin}px`;
+    this.container.appendChild(this.zoomOutButton);
   }
 
   private createCircleButton(
     label: string,
-    color: number,
+    color: string,
     size: number,
     onClick: () => void
-  ): Container {
-    const button = new Container();
-    button.eventMode = 'static';
-    button.cursor = 'pointer';
+  ): HTMLButtonElement {
+    const button = document.createElement('button');
+    button.textContent = label;
+    button.style.cssText = `
+      position: absolute;
+      width: ${size}px;
+      height: ${size}px;
+      border-radius: 50%;
+      background: rgba(0, 20, 40, 0.8);
+      border: 2px solid ${color};
+      color: white;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      font-size: ${label.length > 2 ? 10 : 20}px;
+      font-weight: bold;
+      cursor: pointer;
+      pointer-events: auto;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+      transition: box-shadow 0.2s ease, background 0.2s ease;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+    `;
 
-    // Background circle
-    const bg = new Graphics();
-    bg.circle(0, 0, size / 2);
-    bg.fill({ color: 0x001428, alpha: 0.8 });
-    bg.stroke({ width: 2, color, alpha: 0.8 });
-    button.addChild(bg);
-
-    // Glow effect on press
-    const glow = new Graphics();
-    glow.circle(0, 0, size / 2 + 5);
-    glow.fill({ color, alpha: 0 });
-    button.addChildAt(glow, 0);
-
-    // Label
-    const textStyle = new TextStyle({
-      fontFamily: 'Segoe UI, system-ui, sans-serif',
-      fontSize: label.length > 2 ? 10 : 20,
-      fill: 0xffffff,
-      fontWeight: 'bold',
-    });
-    const text = new Text({ text: label, style: textStyle });
-    text.anchor.set(0.5, 0.5);
-    button.addChild(text);
-
-    // Touch events
-    button.on('pointerdown', () => {
-      bg.clear();
-      bg.circle(0, 0, size / 2);
-      bg.fill({ color: color, alpha: 0.5 });
-      bg.stroke({ width: 2, color, alpha: 1 });
-      
-      glow.clear();
-      glow.circle(0, 0, size / 2 + 5);
-      glow.fill({ color, alpha: 0.3 });
+    // Touch/pointer events
+    button.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      button.style.background = `${color}80`;
+      button.style.boxShadow = `0 0 20px ${color}60`;
     });
 
-    button.on('pointerup', () => {
-      bg.clear();
-      bg.circle(0, 0, size / 2);
-      bg.fill({ color: 0x001428, alpha: 0.8 });
-      bg.stroke({ width: 2, color, alpha: 0.8 });
-      
-      glow.clear();
-      glow.circle(0, 0, size / 2 + 5);
-      glow.fill({ color, alpha: 0 });
-      
+    button.addEventListener('pointerup', (e) => {
+      e.preventDefault();
+      button.style.background = 'rgba(0, 20, 40, 0.8)';
+      button.style.boxShadow = '0 0 10px rgba(0, 0, 0, 0.5)';
       onClick();
     });
 
-    button.on('pointerupoutside', () => {
-      bg.clear();
-      bg.circle(0, 0, size / 2);
-      bg.fill({ color: 0x001428, alpha: 0.8 });
-      bg.stroke({ width: 2, color, alpha: 0.8 });
-      
-      glow.clear();
-      glow.circle(0, 0, size / 2 + 5);
-      glow.fill({ color, alpha: 0 });
+    button.addEventListener('pointerleave', () => {
+      button.style.background = 'rgba(0, 20, 40, 0.8)';
+      button.style.boxShadow = '0 0 10px rgba(0, 0, 0, 0.5)';
+    });
+
+    button.addEventListener('pointercancel', () => {
+      button.style.background = 'rgba(0, 20, 40, 0.8)';
+      button.style.boxShadow = '0 0 10px rgba(0, 0, 0, 0.5)';
     });
 
     return button;
   }
 
   resize(): void {
-    if (!this.isVisible) return;
+    if (!this.isVisible || !this.container) return;
 
     const buttonSize = 60;
     const padding = 20;
@@ -202,33 +193,33 @@ export class TouchControls {
 
     // Reposition action buttons
     if (this.igniteButton) {
-      this.igniteButton.x = window.innerWidth - rightMargin - buttonSize;
-      this.igniteButton.y = window.innerHeight - bottomMargin;
+      this.igniteButton.style.right = `${rightMargin}px`;
+      this.igniteButton.style.bottom = `${bottomMargin}px`;
     }
     if (this.resetButton) {
-      this.resetButton.x = window.innerWidth - rightMargin - buttonSize * 0.7;
-      this.resetButton.y = window.innerHeight - bottomMargin - buttonSize - padding;
+      this.resetButton.style.right = `${rightMargin + (buttonSize - buttonSize * 0.7) / 2}px`;
+      this.resetButton.style.bottom = `${bottomMargin + buttonSize + padding}px`;
     }
     if (this.helpButton) {
-      this.helpButton.x = window.innerWidth - rightMargin - buttonSize * 0.7;
-      this.helpButton.y = window.innerHeight - bottomMargin - (buttonSize + padding) * 2;
+      this.helpButton.style.right = `${rightMargin + (buttonSize - buttonSize * 0.7) / 2}px`;
+      this.helpButton.style.bottom = `${bottomMargin + (buttonSize + padding) * 2}px`;
     }
 
     // Reposition zoom controls
     if (this.zoomInButton) {
-      this.zoomInButton.x = leftMargin + zoomButtonSize;
-      this.zoomInButton.y = window.innerHeight - bottomMargin - zoomButtonSize - 10;
+      this.zoomInButton.style.left = `${leftMargin}px`;
+      this.zoomInButton.style.bottom = `${bottomMargin + zoomButtonSize + 10}px`;
     }
     if (this.zoomOutButton) {
-      this.zoomOutButton.x = leftMargin + zoomButtonSize;
-      this.zoomOutButton.y = window.innerHeight - bottomMargin;
+      this.zoomOutButton.style.left = `${leftMargin}px`;
+      this.zoomOutButton.style.bottom = `${bottomMargin}px`;
     }
   }
 
   setIgniteEnabled(enabled: boolean): void {
     if (this.igniteButton) {
-      this.igniteButton.alpha = enabled ? 1 : 0.5;
-      this.igniteButton.eventMode = enabled ? 'static' : 'none';
+      this.igniteButton.style.opacity = enabled ? '1' : '0.5';
+      this.igniteButton.style.pointerEvents = enabled ? 'auto' : 'none';
     }
   }
 
@@ -237,6 +228,8 @@ export class TouchControls {
   }
 
   dispose(): void {
-    this.container.destroy({ children: true });
+    if (this.container) {
+      this.container.remove();
+    }
   }
 }
