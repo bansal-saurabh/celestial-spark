@@ -103,9 +103,10 @@ export class Galaxy {
     
     // Weighted probability for star types
     // Red dwarfs are most common, blue giants are rare
-    if (roll < 0.45) return 'red_dwarf';
-    if (roll < 0.70) return 'yellow_dwarf';
-    if (roll < 0.82) return 'orange_giant';
+    if (roll < 0.40) return 'red_dwarf';
+    if (roll < 0.62) return 'yellow_dwarf';
+    if (roll < 0.74) return 'orange_giant';
+    if (roll < 0.82) return 'deep_orange';
     if (roll < 0.90) return 'white_dwarf';
     if (roll < 0.96) return 'red_giant';
     return 'blue_giant';
@@ -116,8 +117,9 @@ export class Galaxy {
       case 'red_dwarf': return 2;
       case 'yellow_dwarf': return 4;
       case 'orange_giant': return 3;
+      case 'deep_orange': return 4;
       case 'white_dwarf': return 1;
-      case 'red_giant': return 2;
+      case 'red_giant': return 3;
       case 'blue_giant': return 5;
       default: return 3;
     }

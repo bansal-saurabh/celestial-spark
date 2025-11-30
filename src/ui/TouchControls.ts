@@ -1,7 +1,9 @@
 import { isMobileDevice } from '../utils/deviceUtils';
 
 export interface TouchControlsCallbacks {
-  onIgnite: () => void;
+  onEvolve: () => void;
+  onAdvanceEvolution?: () => void;
+  onPauseEvolution?: () => void;
   onReset: () => void;
   onHelp: () => void;
   onZoomIn: () => void;
@@ -17,7 +19,9 @@ export class TouchControls {
   private container: HTMLDivElement | null = null;
 
   // UI Elements (now HTML elements)
-  private igniteButton: HTMLButtonElement | null = null;
+  private evolveButton: HTMLButtonElement | null = null;
+  private advanceButton: HTMLButtonElement | null = null;
+  private pauseButton: HTMLButtonElement | null = null;
   private resetButton: HTMLButtonElement | null = null;
   private helpButton: HTMLButtonElement | null = null;
   private zoomInButton: HTMLButtonElement | null = null;
@@ -51,10 +55,10 @@ export class TouchControls {
     `;
     document.getElementById('app')?.appendChild(this.container);
 
-    // Create action buttons on the right side
+    // Create action buttons at bottom center
     this.createActionButtons();
 
-    // Create zoom controls
+    // Create zoom controls on the left
     this.createZoomControls();
 
     // Create system navigation buttons
@@ -65,51 +69,75 @@ export class TouchControls {
     if (!this.container) return;
 
     const buttonSize = 60;
-    const padding = 20;
-    const rightMargin = 20;
-    const bottomMargin = 150;
+    const smallButtonSize = 45;
+    const bottomMargin = 30;
+    const centerX = window.innerWidth / 2;
 
-    // Ignite button (primary action)
-    this.igniteButton = this.createCircleButton(
-      'IGNITE',
-      '#ff6600',
+    // Evolve button (primary action) - center bottom
+    this.evolveButton = this.createCircleButton(
+      'EVOLVE',
+      '#22cc44',
       buttonSize,
-      () => this.callbacks.onIgnite()
+      () => this.callbacks.onEvolve()
     );
-    this.igniteButton.style.right = `${rightMargin}px`;
-    this.igniteButton.style.bottom = `${bottomMargin}px`;
-    this.container.appendChild(this.igniteButton);
+    this.evolveButton.style.left = `${centerX - buttonSize / 2}px`;
+    this.evolveButton.style.bottom = `${bottomMargin}px`;
+    this.container.appendChild(this.evolveButton);
 
-    // Reset button
+    // Advance evolution button - left of evolve (hidden by default)
+    this.advanceButton = this.createCircleButton(
+      '▶▶',
+      '#44aa66',
+      smallButtonSize,
+      () => this.callbacks.onAdvanceEvolution?.()
+    );
+    this.advanceButton.style.left = `${centerX - buttonSize / 2 - smallButtonSize - 15}px`;
+    this.advanceButton.style.bottom = `${bottomMargin + (buttonSize - smallButtonSize) / 2}px`;
+    this.advanceButton.style.display = 'none';
+    this.container.appendChild(this.advanceButton);
+
+    // Pause evolution button - right of evolve (hidden by default)
+    this.pauseButton = this.createCircleButton(
+      '❚❚',
+      '#aa6644',
+      smallButtonSize,
+      () => this.callbacks.onPauseEvolution?.()
+    );
+    this.pauseButton.style.left = `${centerX + buttonSize / 2 + 15}px`;
+    this.pauseButton.style.bottom = `${bottomMargin + (buttonSize - smallButtonSize) / 2}px`;
+    this.pauseButton.style.display = 'none';
+    this.container.appendChild(this.pauseButton);
+
+    // Reset button - right side, bottom
     this.resetButton = this.createCircleButton(
       'R',
       '#4080ff',
-      buttonSize * 0.7,
+      smallButtonSize,
       () => this.callbacks.onReset()
     );
-    this.resetButton.style.right = `${rightMargin + (buttonSize - buttonSize * 0.7) / 2}px`;
-    this.resetButton.style.bottom = `${bottomMargin + buttonSize + padding}px`;
+    this.resetButton.style.right = `20px`;
+    this.resetButton.style.bottom = `${bottomMargin}px`;
     this.container.appendChild(this.resetButton);
 
-    // Help button
+    // Help button - right side, above reset
     this.helpButton = this.createCircleButton(
       '?',
       '#4080ff',
-      buttonSize * 0.7,
+      smallButtonSize,
       () => this.callbacks.onHelp()
     );
-    this.helpButton.style.right = `${rightMargin + (buttonSize - buttonSize * 0.7) / 2}px`;
-    this.helpButton.style.bottom = `${bottomMargin + (buttonSize + padding) * 2}px`;
+    this.helpButton.style.right = `20px`;
+    this.helpButton.style.bottom = `${bottomMargin + smallButtonSize + 15}px`;
     this.container.appendChild(this.helpButton);
   }
 
   private createZoomControls(): void {
     if (!this.container) return;
 
-    const buttonSize = 50;
+    const buttonSize = 45;
     const padding = 10;
     const leftMargin = 20;
-    const bottomMargin = 150;
+    const bottomMargin = 30;
 
     // Zoom in button
     this.zoomInButton = this.createCircleButton(
@@ -222,33 +250,47 @@ export class TouchControls {
     if (!this.isVisible || !this.container) return;
 
     const buttonSize = 60;
-    const padding = 20;
-    const rightMargin = 20;
-    const bottomMargin = 150;
+    const smallButtonSize = 45;
+    const bottomMargin = 30;
     const leftMargin = 20;
-    const zoomButtonSize = 50;
     const navButtonSize = 50;
     const topMargin = 80;
     const centerX = window.innerWidth / 2;
 
-    // Reposition action buttons
-    if (this.igniteButton) {
-      this.igniteButton.style.right = `${rightMargin}px`;
-      this.igniteButton.style.bottom = `${bottomMargin}px`;
+    // Reposition evolve button
+    if (this.evolveButton) {
+      this.evolveButton.style.left = `${centerX - buttonSize / 2}px`;
+      this.evolveButton.style.bottom = `${bottomMargin}px`;
     }
+
+    // Reposition advance button
+    if (this.advanceButton) {
+      this.advanceButton.style.left = `${centerX - buttonSize / 2 - smallButtonSize - 15}px`;
+      this.advanceButton.style.bottom = `${bottomMargin + (buttonSize - smallButtonSize) / 2}px`;
+    }
+
+    // Reposition pause button
+    if (this.pauseButton) {
+      this.pauseButton.style.left = `${centerX + buttonSize / 2 + 15}px`;
+      this.pauseButton.style.bottom = `${bottomMargin + (buttonSize - smallButtonSize) / 2}px`;
+    }
+
+    // Reposition reset button
     if (this.resetButton) {
-      this.resetButton.style.right = `${rightMargin + (buttonSize - buttonSize * 0.7) / 2}px`;
-      this.resetButton.style.bottom = `${bottomMargin + buttonSize + padding}px`;
+      this.resetButton.style.right = `20px`;
+      this.resetButton.style.bottom = `${bottomMargin}px`;
     }
+
+    // Reposition help button
     if (this.helpButton) {
-      this.helpButton.style.right = `${rightMargin + (buttonSize - buttonSize * 0.7) / 2}px`;
-      this.helpButton.style.bottom = `${bottomMargin + (buttonSize + padding) * 2}px`;
+      this.helpButton.style.right = `20px`;
+      this.helpButton.style.bottom = `${bottomMargin + smallButtonSize + 15}px`;
     }
 
     // Reposition zoom controls
     if (this.zoomInButton) {
       this.zoomInButton.style.left = `${leftMargin}px`;
-      this.zoomInButton.style.bottom = `${bottomMargin + zoomButtonSize + 10}px`;
+      this.zoomInButton.style.bottom = `${bottomMargin + smallButtonSize + 10}px`;
     }
     if (this.zoomOutButton) {
       this.zoomOutButton.style.left = `${leftMargin}px`;
@@ -266,10 +308,19 @@ export class TouchControls {
     }
   }
 
-  setIgniteEnabled(enabled: boolean): void {
-    if (this.igniteButton) {
-      this.igniteButton.style.opacity = enabled ? '1' : '0.5';
-      this.igniteButton.style.pointerEvents = enabled ? 'auto' : 'none';
+  setEvolveEnabled(enabled: boolean): void {
+    if (this.evolveButton) {
+      this.evolveButton.style.opacity = enabled ? '1' : '0.5';
+      this.evolveButton.style.pointerEvents = enabled ? 'auto' : 'none';
+    }
+  }
+
+  setEvolutionControlsVisible(visible: boolean): void {
+    if (this.advanceButton) {
+      this.advanceButton.style.display = visible ? 'block' : 'none';
+    }
+    if (this.pauseButton) {
+      this.pauseButton.style.display = visible ? 'block' : 'none';
     }
   }
 
