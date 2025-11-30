@@ -1,6 +1,9 @@
 import { Application, Container, Graphics, Text, TextStyle } from 'pixi.js';
 import { GameState } from '../game/GameState';
 import type { PlanetInfo } from '../game/ProceduralPlanet';
+import { TouchControls } from './TouchControls';
+import type { TouchControlsCallbacks } from './TouchControls';
+import { isMobileDevice } from '../utils/deviceUtils';
 
 export class UIOverlay {
   private app: Application;
@@ -11,12 +14,16 @@ export class UIOverlay {
   private controlsPanel: Container;
   private notificationContainer: Container;
   private helpPanel: Container;
+  private touchControls: TouchControls | null = null;
   private isHelpVisible: boolean = false;
   private currentNotification: Container | null = null;
   private notificationTimeout: number | null = null;
+  private callbacks: TouchControlsCallbacks;
+  private isMobile: boolean = false;
 
-  constructor(gameState: GameState) {
+  constructor(gameState: GameState, callbacks: TouchControlsCallbacks) {
     this.gameState = gameState;
+    this.callbacks = callbacks;
     this.app = new Application();
     this.hudContainer = new Container();
     this.statsPanel = new Container();
@@ -24,6 +31,7 @@ export class UIOverlay {
     this.controlsPanel = new Container();
     this.notificationContainer = new Container();
     this.helpPanel = new Container();
+    this.isMobile = isMobileDevice();
   }
 
   async init(): Promise<void> {
@@ -50,6 +58,14 @@ export class UIOverlay {
     this.hudContainer.addChild(this.controlsPanel);
     this.hudContainer.addChild(this.notificationContainer);
     this.hudContainer.addChild(this.helpPanel);
+
+    // Initialize touch controls for mobile
+    if (this.isMobile) {
+      this.touchControls = new TouchControls(this.app, this.callbacks);
+      await this.touchControls.init();
+      // Hide desktop controls panel on mobile
+      this.controlsPanel.visible = false;
+    }
   }
 
   private createStatsPanel(): void {
@@ -127,7 +143,7 @@ export class UIOverlay {
   private createHelpPanel(): void {
     // Background
     const bg = new Graphics();
-    bg.roundRect(0, 0, 400, 300, 8);
+    bg.roundRect(0, 0, 400, 320, 8);
     bg.fill({ color: 0x001428, alpha: 0.9 });
     bg.stroke({ width: 1, color: 0x4080ff, alpha: 0.5 });
     this.helpPanel.addChild(bg);
@@ -154,8 +170,23 @@ export class UIOverlay {
       lineHeight: 20,
     });
 
-    const description = new Text({ 
-      text: `Welcome to Celestial Spark, a cosmic adventure where you explore and ignite new worlds!
+    // Different help text for mobile vs desktop
+    const helpText = this.isMobile 
+      ? `Welcome to Celestial Spark, a cosmic adventure where you explore and ignite new worlds!
+
+Your mission is to discover and ignite all planets in this solar system, bringing life and civilization to the cosmos.
+
+Touch Controls:
+• One finger drag: Rotate camera
+• Two finger pinch: Zoom in/out
+• Tap on a planet: Select it
+• IGNITE button: Ignite selected planet
+• +/- buttons: Zoom controls
+• R button: Reset camera view
+• ? button: Toggle this help panel
+
+Tip: Planets further from the sun are worth more points when ignited!`
+      : `Welcome to Celestial Spark, a cosmic adventure where you explore and ignite new worlds!
 
 Your mission is to discover and ignite all planets in this solar system, bringing life and civilization to the cosmos.
 
@@ -169,7 +200,10 @@ Controls:
 • R: Reset camera view
 • H: Toggle this help panel
 
-Tip: Planets further from the sun are worth more points when ignited!`,
+Tip: Planets further from the sun are worth more points when ignited!`;
+
+    const description = new Text({ 
+      text: helpText,
       style: descStyle 
     });
     description.x = 20;
@@ -178,7 +212,7 @@ Tip: Planets further from the sun are worth more points when ignited!`,
 
     // Position centered
     this.helpPanel.x = (window.innerWidth - 400) / 2;
-    this.helpPanel.y = (window.innerHeight - 300) / 2;
+    this.helpPanel.y = (window.innerHeight - 320) / 2;
     this.helpPanel.visible = false;
   }
 
@@ -305,7 +339,8 @@ Tip: Planets further from the sun are worth more points when ignited!`,
         fill: 0x80c0ff,
         fontStyle: 'italic',
       });
-      const hint = new Text({ text: 'Press SPACE to ignite', style: hintStyle });
+      const hintText = this.isMobile ? 'Tap IGNITE button' : 'Press SPACE to ignite';
+      const hint = new Text({ text: hintText, style: hintStyle });
       hint.x = 110;
       hint.y = 140;
       hint.anchor.set(0.5, 0);
@@ -389,12 +424,20 @@ Tip: Planets further from the sun are worth more points when ignited!`,
     }
 
     this.helpPanel.x = (window.innerWidth - 400) / 2;
-    this.helpPanel.y = (window.innerHeight - 300) / 2;
+    this.helpPanel.y = (window.innerHeight - 320) / 2;
+
+    // Resize touch controls
+    if (this.touchControls) {
+      this.touchControls.resize();
+    }
   }
 
   dispose(): void {
     if (this.notificationTimeout) {
       clearTimeout(this.notificationTimeout);
+    }
+    if (this.touchControls) {
+      this.touchControls.dispose();
     }
     this.app.destroy(true);
   }

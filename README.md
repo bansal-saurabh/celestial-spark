@@ -19,6 +19,9 @@ Visit the live game at: [GitHub Pages URL after deployment]
 - **Dynamic Lighting**: Realistic sun with corona effects and planet atmospheres
 - **Particle Effects**: Spectacular ignition effects when activating new worlds
 - **Progress Tracking**: Track your discoveries and ignited worlds
+- **Asteroid Belt**: Realistic asteroid belt with hundreds of orbiting rocks between inner and outer planets
+- **Comets**: Dynamic comets with glowing tails that follow elliptical orbits and brighten near the sun
+- **Mobile Touch Controls**: Full touch support with on-screen buttons for ignite, zoom, and navigation
 
 ## 🎯 How to Play
 
@@ -28,6 +31,8 @@ Visit the live game at: [GitHub Pages URL after deployment]
 4. **Complete**: Ignite all planets to complete your cosmic mission
 
 ### Controls
+
+#### Desktop Controls
 
 | Key/Action | Function |
 |------------|----------|
@@ -39,6 +44,18 @@ Visit the live game at: [GitHub Pages URL after deployment]
 | `1-5` | Quick select planets |
 | `R` | Reset camera view |
 | `H` | Toggle help panel |
+
+#### Mobile/Touch Controls
+
+| Gesture | Function |
+|---------|----------|
+| One finger drag | Rotate camera |
+| Pinch | Zoom in/out |
+| Tap on planet | Select planet |
+| IGNITE button | Ignite selected planet |
+| +/- buttons | Zoom controls |
+| R button | Reset camera view |
+| ? button | Toggle help panel |
 
 ## 🛠️ Technology Stack
 
@@ -92,9 +109,12 @@ celestial-spark/
 │   │   ├── GameState.ts      # Game state management
 │   │   ├── StarField.ts      # Background star field
 │   │   ├── CelestialBody.ts  # Base celestial body class
-│   │   └── ProceduralPlanet.ts # Procedural planet generation
+│   │   ├── ProceduralPlanet.ts # Procedural planet generation
+│   │   ├── AsteroidBelt.ts   # Asteroid belt system
+│   │   └── Comet.ts          # Comet with particle tail
 │   ├── ui/
-│   │   └── UIOverlay.ts      # Pixi.js UI overlay
+│   │   ├── UIOverlay.ts      # Pixi.js UI overlay
+│   │   └── TouchControls.ts  # Mobile touch controls
 │   ├── main.ts               # Application entry point
 │   └── style.css             # Global styles
 ├── index.html

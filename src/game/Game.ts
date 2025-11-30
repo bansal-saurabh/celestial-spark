@@ -2,8 +2,11 @@ import { Engine, Scene, Vector3, HemisphericLight, ArcRotateCamera, Color4, Mesh
 import { StarField } from './StarField';
 import { CelestialBody } from './CelestialBody';
 import { ProceduralPlanet } from './ProceduralPlanet';
+import { AsteroidBelt } from './AsteroidBelt';
+import { Comet } from './Comet';
 import { UIOverlay } from '../ui/UIOverlay';
 import { GameState } from './GameState';
+import { isMobileDevice } from '../utils/deviceUtils';
 
 export class Game {
   private canvas: HTMLCanvasElement;
@@ -13,21 +16,39 @@ export class Game {
   private starField: StarField;
   private celestialBodies: CelestialBody[] = [];
   private proceduralPlanets: ProceduralPlanet[] = [];
+  private asteroidBelt: AsteroidBelt | null = null;
+  private comets: Comet[] = [];
   private uiOverlay: UIOverlay;
   private gameState: GameState;
   private glowLayer: GlowLayer;
   private isRunning: boolean = false;
+  private isMobile: boolean = false;
 
   constructor() {
     this.canvas = document.getElementById('babylon-canvas') as HTMLCanvasElement;
     this.engine = new Engine(this.canvas, true, { preserveDrawingBuffer: true, stencil: true });
     this.scene = new Scene(this.engine);
     this.gameState = new GameState();
+    this.isMobile = isMobileDevice();
     this.camera = this.createCamera();
     this.starField = new StarField(this.scene);
-    this.uiOverlay = new UIOverlay(this.gameState);
+    this.uiOverlay = new UIOverlay(this.gameState, {
+      onIgnite: () => this.igniteSelectedPlanet(),
+      onReset: () => this.resetCamera(),
+      onHelp: () => this.uiOverlay.toggleHelp(),
+      onZoomIn: () => this.zoomCamera(-10),
+      onZoomOut: () => this.zoomCamera(10),
+    });
     this.glowLayer = new GlowLayer('glow', this.scene);
     this.glowLayer.intensity = 0.8;
+  }
+
+  private zoomCamera(delta: number): void {
+    const newRadius = Math.max(
+      this.camera.lowerRadiusLimit || 5,
+      Math.min(this.camera.upperRadiusLimit || 200, this.camera.radius + delta)
+    );
+    this.camera.radius = newRadius;
   }
 
   async init(): Promise<void> {
@@ -87,6 +108,22 @@ export class Game {
     camera.inertia = 0.9;
     camera.angularSensibilityX = 500;
     camera.angularSensibilityY = 500;
+    
+    // Improved touch controls for mobile
+    if (this.isMobile) {
+      // Better pinch-to-zoom sensitivity
+      camera.pinchPrecision = 50;
+      // Smoother touch rotation
+      camera.angularSensibilityX = 1000;
+      camera.angularSensibilityY = 1000;
+      // Higher inertia for smoother mobile experience
+      camera.inertia = 0.92;
+      // Enable multi-touch gestures
+      camera.panningSensibility = 200;
+      // Use two-finger pan for panning (not rotation)
+      camera.pinchToPanMaxDistance = 50;
+    }
+    
     return camera;
   }
 
@@ -152,10 +189,37 @@ export class Game {
         ignited: false
       });
 
-      this.updateLoadingProgress(40 + ((i + 1) / planetConfigs.length) * 40);
+      this.updateLoadingProgress(40 + ((i + 1) / planetConfigs.length) * 30);
     }
 
+    this.updateLoadingProgress(70);
+
+    // Create asteroid belt between Crimson Forge and Jade Titan
+    this.asteroidBelt = new AsteroidBelt(this.scene, 30, 35, 150);
+    await this.asteroidBelt.create();
+
     this.updateLoadingProgress(80);
+
+    // Create comets for added cosmic realism
+    const cometConfigs = [
+      { name: 'Halley\'s Echo', semiMajorAxis: 90, eccentricity: 0.75, inclination: 0.4, orbitSpeed: 0.0002 },
+      { name: 'Frost Wanderer', semiMajorAxis: 110, eccentricity: 0.8, inclination: -0.3, orbitSpeed: 0.00015 },
+    ];
+
+    for (const config of cometConfigs) {
+      const comet = new Comet(
+        this.scene,
+        config.name,
+        config.semiMajorAxis,
+        config.eccentricity,
+        config.inclination,
+        config.orbitSpeed
+      );
+      await comet.create();
+      this.comets.push(comet);
+    }
+
+    this.updateLoadingProgress(85);
 
     // Create orbit lines
     this.createOrbitLines(planetConfigs.map(p => p.distance));
@@ -360,6 +424,14 @@ export class Game {
       // Update all celestial bodies
       this.proceduralPlanets.forEach(planet => planet.update());
       
+      // Update asteroid belt
+      if (this.asteroidBelt) {
+        this.asteroidBelt.update();
+      }
+      
+      // Update comets
+      this.comets.forEach(comet => comet.update());
+      
       // Update UI
       this.uiOverlay.update();
       
@@ -376,6 +448,10 @@ export class Game {
   dispose(): void {
     this.stop();
     this.uiOverlay.dispose();
+    if (this.asteroidBelt) {
+      this.asteroidBelt.dispose();
+    }
+    this.comets.forEach(comet => comet.dispose());
     this.scene.dispose();
     this.engine.dispose();
   }
