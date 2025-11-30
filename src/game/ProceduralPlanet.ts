@@ -437,6 +437,20 @@ export class ProceduralPlanet {
     };
   }
 
+  setEnabled(enabled: boolean): void {
+    if (this.mesh) this.mesh.setEnabled(enabled);
+    if (this.ringMesh) this.ringMesh.setEnabled(enabled);
+    if (this.atmosphereMesh) this.atmosphereMesh.setEnabled(enabled);
+    if (this.ignitionParticles) {
+      if (enabled) this.ignitionParticles.start();
+      else this.ignitionParticles.stop();
+    }
+    
+    // Also enable/disable moons
+    const moons = this.scene.meshes.filter(m => m.name.startsWith(`${this.name}_moon_`));
+    moons.forEach(moon => moon.setEnabled(enabled));
+  }
+
   dispose(): void {
     if (this.mesh) this.mesh.dispose();
     if (this.ringMesh) this.ringMesh.dispose();

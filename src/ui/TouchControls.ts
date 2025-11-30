@@ -6,6 +6,8 @@ export interface TouchControlsCallbacks {
   onHelp: () => void;
   onZoomIn: () => void;
   onZoomOut: () => void;
+  onNextSystem?: () => void;
+  onPrevSystem?: () => void;
 }
 
 export class TouchControls {
@@ -20,6 +22,8 @@ export class TouchControls {
   private helpButton: HTMLButtonElement | null = null;
   private zoomInButton: HTMLButtonElement | null = null;
   private zoomOutButton: HTMLButtonElement | null = null;
+  private nextSystemButton: HTMLButtonElement | null = null;
+  private prevSystemButton: HTMLButtonElement | null = null;
 
   constructor(callbacks: TouchControlsCallbacks) {
     this.callbacks = callbacks;
@@ -52,6 +56,9 @@ export class TouchControls {
 
     // Create zoom controls
     this.createZoomControls();
+
+    // Create system navigation buttons
+    this.createSystemNavButtons();
   }
 
   private createActionButtons(): void {
@@ -127,6 +134,36 @@ export class TouchControls {
     this.container.appendChild(this.zoomOutButton);
   }
 
+  private createSystemNavButtons(): void {
+    if (!this.container) return;
+
+    const buttonSize = 50;
+    const topMargin = 80;
+    const centerX = window.innerWidth / 2;
+
+    // Previous system button
+    this.prevSystemButton = this.createCircleButton(
+      '◀',
+      '#8040ff',
+      buttonSize,
+      () => this.callbacks.onPrevSystem?.()
+    );
+    this.prevSystemButton.style.left = `${centerX - buttonSize - 30}px`;
+    this.prevSystemButton.style.top = `${topMargin}px`;
+    this.container.appendChild(this.prevSystemButton);
+
+    // Next system button
+    this.nextSystemButton = this.createCircleButton(
+      '▶',
+      '#8040ff',
+      buttonSize,
+      () => this.callbacks.onNextSystem?.()
+    );
+    this.nextSystemButton.style.left = `${centerX + 30}px`;
+    this.nextSystemButton.style.top = `${topMargin}px`;
+    this.container.appendChild(this.nextSystemButton);
+  }
+
   private createCircleButton(
     label: string,
     color: string,
@@ -190,6 +227,9 @@ export class TouchControls {
     const bottomMargin = 150;
     const leftMargin = 20;
     const zoomButtonSize = 50;
+    const navButtonSize = 50;
+    const topMargin = 80;
+    const centerX = window.innerWidth / 2;
 
     // Reposition action buttons
     if (this.igniteButton) {
@@ -213,6 +253,16 @@ export class TouchControls {
     if (this.zoomOutButton) {
       this.zoomOutButton.style.left = `${leftMargin}px`;
       this.zoomOutButton.style.bottom = `${bottomMargin}px`;
+    }
+
+    // Reposition system navigation buttons
+    if (this.prevSystemButton) {
+      this.prevSystemButton.style.left = `${centerX - navButtonSize - 30}px`;
+      this.prevSystemButton.style.top = `${topMargin}px`;
+    }
+    if (this.nextSystemButton) {
+      this.nextSystemButton.style.left = `${centerX + 30}px`;
+      this.nextSystemButton.style.top = `${topMargin}px`;
     }
   }
 

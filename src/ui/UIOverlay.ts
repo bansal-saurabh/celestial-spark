@@ -14,12 +14,16 @@ export class UIOverlay {
   private controlsPanel: Container;
   private notificationContainer: Container;
   private helpPanel: Container;
+  private systemInfoPanel: Container;
   private touchControls: TouchControls | null = null;
   private isHelpVisible: boolean = false;
   private currentNotification: Container | null = null;
   private notificationTimeout: number | null = null;
   private callbacks: TouchControlsCallbacks;
   private isMobile: boolean = false;
+  private currentSystemName: string = '';
+  private currentSystemIndex: number = 1;
+  private totalSystems: number = 1;
 
   constructor(gameState: GameState, callbacks: TouchControlsCallbacks) {
     this.gameState = gameState;
@@ -31,6 +35,7 @@ export class UIOverlay {
     this.controlsPanel = new Container();
     this.notificationContainer = new Container();
     this.helpPanel = new Container();
+    this.systemInfoPanel = new Container();
     this.isMobile = isMobileDevice();
   }
 
@@ -52,12 +57,14 @@ export class UIOverlay {
     this.createStatsPanel();
     this.createControlsPanel();
     this.createHelpPanel();
+    this.createSystemInfoPanel();
     
     this.hudContainer.addChild(this.statsPanel);
     this.hudContainer.addChild(this.planetInfoPanel);
     this.hudContainer.addChild(this.controlsPanel);
     this.hudContainer.addChild(this.notificationContainer);
     this.hudContainer.addChild(this.helpPanel);
+    this.hudContainer.addChild(this.systemInfoPanel);
 
     // Initialize touch controls for mobile
     if (this.isMobile) {
@@ -66,6 +73,59 @@ export class UIOverlay {
       // Hide desktop controls panel on mobile
       this.controlsPanel.visible = false;
     }
+  }
+
+  private createSystemInfoPanel(): void {
+    // Position at top center
+    this.systemInfoPanel.x = window.innerWidth / 2;
+    this.systemInfoPanel.y = 20;
+  }
+
+  private updateSystemInfoPanel(): void {
+    // Clear existing content
+    this.systemInfoPanel.removeChildren();
+
+    // Background
+    const bg = new Graphics();
+    bg.roundRect(-120, 0, 240, 50, 8);
+    bg.fill({ color: 0x001428, alpha: 0.7 });
+    bg.stroke({ width: 1, color: 0x8040ff, alpha: 0.5 });
+    this.systemInfoPanel.addChild(bg);
+
+    // System name
+    const nameStyle = new TextStyle({
+      fontFamily: 'Segoe UI, system-ui, sans-serif',
+      fontSize: 16,
+      fill: 0x80c0ff,
+      fontWeight: 'bold',
+    });
+    const nameText = new Text({ text: this.currentSystemName, style: nameStyle });
+    nameText.anchor.set(0.5, 0);
+    nameText.x = 0;
+    nameText.y = 8;
+    this.systemInfoPanel.addChild(nameText);
+
+    // System counter
+    const counterStyle = new TextStyle({
+      fontFamily: 'Segoe UI, system-ui, sans-serif',
+      fontSize: 12,
+      fill: 0x96b4dc,
+    });
+    const counterText = new Text({ 
+      text: `System ${this.currentSystemIndex} of ${this.totalSystems}`, 
+      style: counterStyle 
+    });
+    counterText.anchor.set(0.5, 0);
+    counterText.x = 0;
+    counterText.y = 30;
+    this.systemInfoPanel.addChild(counterText);
+  }
+
+  setSystemInfo(systemName: string, currentIndex: number, totalSystems: number): void {
+    this.currentSystemName = systemName;
+    this.currentSystemIndex = currentIndex;
+    this.totalSystems = totalSystems;
+    this.updateSystemInfoPanel();
   }
 
   private createStatsPanel(): void {
@@ -96,7 +156,7 @@ export class UIOverlay {
   private createControlsPanel(): void {
     // Background
     const bg = new Graphics();
-    bg.roundRect(0, 0, 180, 100, 8);
+    bg.roundRect(0, 0, 180, 130, 8);
     bg.fill({ color: 0x001428, alpha: 0.7 });
     bg.stroke({ width: 1, color: 0x4080ff, alpha: 0.3 });
     this.controlsPanel.addChild(bg);
@@ -125,6 +185,8 @@ export class UIOverlay {
       'Mouse: Rotate view',
       'Scroll: Zoom in/out',
       'Space: Ignite planet',
+      'N/→: Next system',
+      'P/←: Prev system',
       'R: Reset view',
       'H: Toggle help',
     ];
@@ -137,13 +199,13 @@ export class UIOverlay {
     });
 
     this.controlsPanel.x = 20;
-    this.controlsPanel.y = window.innerHeight - 120;
+    this.controlsPanel.y = window.innerHeight - 150;
   }
 
   private createHelpPanel(): void {
     // Background
     const bg = new Graphics();
-    bg.roundRect(0, 0, 400, 320, 8);
+    bg.roundRect(0, 0, 400, 360, 8);
     bg.fill({ color: 0x001428, alpha: 0.9 });
     bg.stroke({ width: 1, color: 0x4080ff, alpha: 0.5 });
     this.helpPanel.addChild(bg);
@@ -172,23 +234,24 @@ export class UIOverlay {
 
     // Different help text for mobile vs desktop
     const helpText = this.isMobile 
-      ? `Welcome to Celestial Spark, a cosmic adventure where you explore and ignite new worlds!
+      ? `Welcome to Celestial Spark, a cosmic adventure where you explore and ignite new worlds across the galaxy!
 
-Your mission is to discover and ignite all planets in this solar system, bringing life and civilization to the cosmos.
+Your mission is to discover and ignite all planets across multiple solar systems, bringing life and civilization to the cosmos.
 
 Touch Controls:
 • One finger drag: Rotate camera
 • Two finger pinch: Zoom in/out
 • Tap on a planet: Select it
 • IGNITE button: Ignite selected planet
+• ◀/▶ buttons: Travel between systems
 • +/- buttons: Zoom controls
 • R button: Reset camera view
 • ? button: Toggle this help panel
 
-Tip: Planets further from the sun are worth more points when ignited!`
-      : `Welcome to Celestial Spark, a cosmic adventure where you explore and ignite new worlds!
+Tip: Different star systems have unique stars and planets to discover!`
+      : `Welcome to Celestial Spark, a cosmic adventure where you explore and ignite new worlds across the galaxy!
 
-Your mission is to discover and ignite all planets in this solar system, bringing life and civilization to the cosmos.
+Your mission is to discover and ignite all planets across multiple solar systems, bringing life and civilization to the cosmos.
 
 Controls:
 • Left-click + drag: Rotate camera
@@ -196,11 +259,13 @@ Controls:
 • Scroll wheel: Zoom in/out
 • Click on a planet: Select it
 • Space: Ignite selected planet
-• 1-5: Quick select planets
+• N or →: Travel to next system
+• P or ←: Travel to previous system
+• 1-9: Quick select planets
 • R: Reset camera view
 • H: Toggle this help panel
 
-Tip: Planets further from the sun are worth more points when ignited!`;
+Tip: Different star systems have unique stars and planets to discover!`;
 
     const description = new Text({ 
       text: helpText,
@@ -212,7 +277,7 @@ Tip: Planets further from the sun are worth more points when ignited!`;
 
     // Position centered
     this.helpPanel.x = (window.innerWidth - 400) / 2;
-    this.helpPanel.y = (window.innerHeight - 320) / 2;
+    this.helpPanel.y = (window.innerHeight - 360) / 2;
     this.helpPanel.visible = false;
   }
 
@@ -417,14 +482,17 @@ Tip: Planets further from the sun are worth more points when ignited!`;
     this.app.renderer.resize(window.innerWidth, window.innerHeight);
     
     // Reposition elements
-    this.controlsPanel.y = window.innerHeight - 120;
+    this.controlsPanel.y = window.innerHeight - 150;
     
     if (this.planetInfoPanel.children.length > 0) {
       this.planetInfoPanel.x = window.innerWidth - 240;
     }
 
     this.helpPanel.x = (window.innerWidth - 400) / 2;
-    this.helpPanel.y = (window.innerHeight - 320) / 2;
+    this.helpPanel.y = (window.innerHeight - 360) / 2;
+
+    // Reposition system info panel
+    this.systemInfoPanel.x = window.innerWidth / 2;
 
     // Resize touch controls
     if (this.touchControls) {
