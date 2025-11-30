@@ -177,6 +177,15 @@ export class Comet {
     return this.name;
   }
 
+  setEnabled(enabled: boolean): void {
+    if (this.nucleus) this.nucleus.setEnabled(enabled);
+    if (this.coma) this.coma.setEnabled(enabled);
+    if (this.tailParticles) {
+      if (enabled) this.tailParticles.start();
+      else this.tailParticles.stop();
+    }
+  }
+
   dispose(): void {
     if (this.nucleus) this.nucleus.dispose();
     if (this.coma) this.coma.dispose();

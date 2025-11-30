@@ -82,6 +82,15 @@ export class AsteroidBelt {
     }
   }
 
+  setEnabled(enabled: boolean): void {
+    for (const asteroid of this.asteroids) {
+      asteroid.setEnabled(enabled);
+    }
+    if (this.baseMesh) {
+      this.baseMesh.setEnabled(enabled);
+    }
+  }
+
   dispose(): void {
     for (const asteroid of this.asteroids) {
       asteroid.dispose();

@@ -1,9 +1,7 @@
-import { Engine, Scene, Vector3, HemisphericLight, ArcRotateCamera, Color4, MeshBuilder, StandardMaterial, Color3, Texture, PointLight, ParticleSystem, GlowLayer } from '@babylonjs/core';
+import { Engine, Scene, Vector3, HemisphericLight, ArcRotateCamera, Color4, Color3, GlowLayer } from '@babylonjs/core';
 import { StarField } from './StarField';
-import { CelestialBody } from './CelestialBody';
 import { ProceduralPlanet } from './ProceduralPlanet';
-import { AsteroidBelt } from './AsteroidBelt';
-import { Comet } from './Comet';
+import { Galaxy } from './Galaxy';
 import { UIOverlay } from '../ui/UIOverlay';
 import { GameState } from './GameState';
 import { isMobileDevice } from '../utils/deviceUtils';
@@ -14,10 +12,7 @@ export class Game {
   private scene: Scene;
   private camera: ArcRotateCamera;
   private starField: StarField;
-  private celestialBodies: CelestialBody[] = [];
-  private proceduralPlanets: ProceduralPlanet[] = [];
-  private asteroidBelt: AsteroidBelt | null = null;
-  private comets: Comet[] = [];
+  private galaxy: Galaxy | null = null;
   private uiOverlay: UIOverlay;
   private gameState: GameState;
   private glowLayer: GlowLayer;
@@ -38,6 +33,8 @@ export class Game {
       onHelp: () => this.uiOverlay.toggleHelp(),
       onZoomIn: () => this.zoomCamera(-10),
       onZoomOut: () => this.zoomCamera(10),
+      onNextSystem: () => this.travelToNextSystem(),
+      onPrevSystem: () => this.travelToPreviousSystem(),
     });
     this.glowLayer = new GlowLayer('glow', this.scene);
     this.glowLayer.intensity = 0.8;
@@ -61,11 +58,30 @@ export class Game {
     // Create star field background
     await this.starField.create();
 
-    // Create the solar system
-    await this.createSolarSystem();
+    this.updateLoadingProgress(20);
+
+    // Create the galaxy with multiple solar systems
+    this.galaxy = new Galaxy(this.scene, this.glowLayer, {
+      systemCount: 5, // Start with 5 solar systems
+      seed: 42
+    });
+    await this.galaxy.create();
+
+    // Register planets from current system with game state
+    this.registerCurrentSystemPlanets();
+
+    // Listen for system changes
+    this.galaxy.onSystemChange((system) => {
+      this.handleSystemChange(system);
+    });
+
+    this.updateLoadingProgress(80);
 
     // Initialize UI overlay
     await this.uiOverlay.init();
+
+    // Update UI with current system info
+    this.updateSystemInfo();
 
     // Setup window resize handler
     window.addEventListener('resize', () => {
@@ -89,6 +105,70 @@ export class Game {
         }, 1000);
       }
     }, 500);
+  }
+
+  private registerCurrentSystemPlanets(): void {
+    if (!this.galaxy) return;
+    
+    const currentSystem = this.galaxy.getCurrentSystem();
+    const planets = currentSystem.getPlanets();
+    
+    planets.forEach(planet => {
+      const info = planet.getInfo();
+      this.gameState.addDiscoveredBody(planet.getName(), {
+        type: 'planet',
+        distance: info.distance,
+        size: info.size,
+        ignited: info.ignited
+      });
+    });
+  }
+
+  private handleSystemChange(system: import('./SolarSystem').SolarSystem): void {
+    // Reset camera
+    this.resetCamera();
+    
+    // Update UI with new system info
+    this.updateSystemInfo();
+    
+    // Register new system's planets
+    const planets = system.getPlanets();
+    planets.forEach(planet => {
+      const info = planet.getInfo();
+      this.gameState.addDiscoveredBody(planet.getName(), {
+        type: 'planet',
+        distance: info.distance,
+        size: info.size,
+        ignited: info.ignited
+      });
+    });
+
+    // Show notification
+    this.uiOverlay.showNotification(`Arrived at ${system.getConfig().name}!`);
+  }
+
+  private updateSystemInfo(): void {
+    if (!this.galaxy) return;
+    
+    const currentSystem = this.galaxy.getCurrentSystem();
+    const systemIndex = this.galaxy.getCurrentSystemIndex();
+    const totalSystems = this.galaxy.getSystemCount();
+    
+    this.uiOverlay.setSystemInfo(
+      currentSystem.getConfig().name,
+      systemIndex + 1,
+      totalSystems
+    );
+  }
+
+  private async travelToNextSystem(): Promise<void> {
+    if (!this.galaxy || this.galaxy.isInTransit()) return;
+    await this.galaxy.travelToNextSystem();
+  }
+
+  private async travelToPreviousSystem(): Promise<void> {
+    if (!this.galaxy || this.galaxy.isInTransit()) return;
+    await this.galaxy.travelToPreviousSystem();
   }
 
   private createCamera(): ArcRotateCamera {
@@ -136,204 +216,11 @@ export class Game {
     );
     ambientLight.intensity = 0.1;
     ambientLight.groundColor = new Color3(0.05, 0.05, 0.1);
-
-    // Main sun light
-    const sunLight = new PointLight(
-      'sunLight',
-      Vector3.Zero(),
-      this.scene
-    );
-    sunLight.intensity = 2;
-    sunLight.diffuse = new Color3(1, 0.95, 0.8);
-    sunLight.specular = new Color3(1, 0.95, 0.8);
   }
 
-  private async createSolarSystem(): Promise<void> {
-    this.updateLoadingProgress(20);
-
-    // Create the Sun
-    const sun = this.createSun();
-    this.celestialBodies.push(sun);
-
-    this.updateLoadingProgress(40);
-
-    // Create procedurally generated planets
-    const planetConfigs = [
-      { name: 'Terra Nova', distance: 15, size: 1.5, color: new Color3(0.3, 0.5, 0.8), hasRings: false, orbitSpeed: 0.002 },
-      { name: 'Crimson Forge', distance: 25, size: 1.2, color: new Color3(0.8, 0.3, 0.2), hasRings: false, orbitSpeed: 0.0015 },
-      { name: 'Jade Titan', distance: 38, size: 3.5, color: new Color3(0.4, 0.6, 0.4), hasRings: true, orbitSpeed: 0.001 },
-      { name: 'Azure Giant', distance: 55, size: 2.8, color: new Color3(0.2, 0.4, 0.7), hasRings: true, orbitSpeed: 0.0008 },
-      { name: 'Frost Haven', distance: 70, size: 1.8, color: new Color3(0.7, 0.8, 0.9), hasRings: false, orbitSpeed: 0.0006 },
-    ];
-
-    for (let i = 0; i < planetConfigs.length; i++) {
-      const config = planetConfigs[i];
-      const planet = new ProceduralPlanet(
-        config.name,
-        config.distance,
-        config.size,
-        config.color,
-        config.hasRings,
-        config.orbitSpeed,
-        this.scene,
-        this.glowLayer
-      );
-      await planet.create();
-      this.proceduralPlanets.push(planet);
-      
-      // Add to game state
-      this.gameState.addDiscoveredBody(config.name, {
-        type: 'planet',
-        distance: config.distance,
-        size: config.size,
-        ignited: false
-      });
-
-      this.updateLoadingProgress(40 + ((i + 1) / planetConfigs.length) * 30);
-    }
-
-    this.updateLoadingProgress(70);
-
-    // Create asteroid belt between Crimson Forge and Jade Titan
-    this.asteroidBelt = new AsteroidBelt(this.scene, 30, 35, 150);
-    await this.asteroidBelt.create();
-
-    this.updateLoadingProgress(80);
-
-    // Create comets for added cosmic realism
-    const cometConfigs = [
-      { name: 'Halley\'s Echo', semiMajorAxis: 90, eccentricity: 0.75, inclination: 0.4, orbitSpeed: 0.0002 },
-      { name: 'Frost Wanderer', semiMajorAxis: 110, eccentricity: 0.8, inclination: -0.3, orbitSpeed: 0.00015 },
-    ];
-
-    for (const config of cometConfigs) {
-      const comet = new Comet(
-        this.scene,
-        config.name,
-        config.semiMajorAxis,
-        config.eccentricity,
-        config.inclination,
-        config.orbitSpeed
-      );
-      await comet.create();
-      this.comets.push(comet);
-    }
-
-    this.updateLoadingProgress(85);
-
-    // Create orbit lines
-    this.createOrbitLines(planetConfigs.map(p => p.distance));
-
-    this.updateLoadingProgress(90);
-  }
-
-  private createSun(): CelestialBody {
-    const sunMesh = MeshBuilder.CreateSphere('sun', { diameter: 8, segments: 32 }, this.scene);
-    
-    const sunMaterial = new StandardMaterial('sunMaterial', this.scene);
-    sunMaterial.emissiveColor = new Color3(1, 0.8, 0.3);
-    sunMaterial.disableLighting = true;
-    sunMesh.material = sunMaterial;
-
-    // Add glow to sun
-    this.glowLayer.addIncludedOnlyMesh(sunMesh);
-    this.glowLayer.customEmissiveColorSelector = (mesh, _subMesh, _material, result) => {
-      if (mesh.name === 'sun') {
-        result.set(1, 0.7, 0.2, 1);
-      }
-    };
-
-    // Create sun corona particle effect
-    this.createSunCorona();
-
-    // Add to game state
-    this.gameState.addDiscoveredBody('Sol Prime', {
-      type: 'star',
-      distance: 0,
-      size: 8,
-      ignited: true
-    });
-
-    return new CelestialBody('Sol Prime', sunMesh, 0, 0);
-  }
-
-  private createSunCorona(): void {
-    const particleSystem = new ParticleSystem('sunCorona', 2000, this.scene);
-    
-    // Create a simple particle texture
-    const size = 32;
-    const canvas = document.createElement('canvas');
-    canvas.width = size;
-    canvas.height = size;
-    const ctx = canvas.getContext('2d')!;
-    
-    const gradient = ctx.createRadialGradient(size/2, size/2, 0, size/2, size/2, size/2);
-    gradient.addColorStop(0, 'rgba(255, 200, 100, 1)');
-    gradient.addColorStop(0.5, 'rgba(255, 150, 50, 0.5)');
-    gradient.addColorStop(1, 'rgba(255, 100, 0, 0)');
-    
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, size, size);
-    
-    const texture = new Texture('data:' + canvas.toDataURL(), this.scene);
-    particleSystem.particleTexture = texture;
-
-    particleSystem.emitter = Vector3.Zero();
-    particleSystem.minEmitBox = new Vector3(-2, -2, -2);
-    particleSystem.maxEmitBox = new Vector3(2, 2, 2);
-
-    particleSystem.color1 = new Color4(1, 0.8, 0.3, 1);
-    particleSystem.color2 = new Color4(1, 0.5, 0.1, 1);
-    particleSystem.colorDead = new Color4(1, 0.2, 0, 0);
-
-    particleSystem.minSize = 0.5;
-    particleSystem.maxSize = 2;
-
-    particleSystem.minLifeTime = 0.5;
-    particleSystem.maxLifeTime = 1.5;
-
-    particleSystem.emitRate = 500;
-
-    particleSystem.blendMode = ParticleSystem.BLENDMODE_ADD;
-
-    particleSystem.gravity = new Vector3(0, 0, 0);
-
-    particleSystem.direction1 = new Vector3(-1, -1, -1);
-    particleSystem.direction2 = new Vector3(1, 1, 1);
-
-    particleSystem.minAngularSpeed = 0;
-    particleSystem.maxAngularSpeed = Math.PI;
-
-    particleSystem.minEmitPower = 1;
-    particleSystem.maxEmitPower = 3;
-    particleSystem.updateSpeed = 0.01;
-
-    particleSystem.start();
-  }
-
-  private createOrbitLines(distances: number[]): void {
-    for (const distance of distances) {
-      const points: Vector3[] = [];
-      const segments = 128;
-      
-      for (let i = 0; i <= segments; i++) {
-        const angle = (i / segments) * Math.PI * 2;
-        points.push(new Vector3(
-          Math.cos(angle) * distance,
-          0,
-          Math.sin(angle) * distance
-        ));
-      }
-
-      const orbitLine = MeshBuilder.CreateLines(
-        `orbit_${distance}`,
-        { points, updatable: false },
-        this.scene
-      );
-      
-      orbitLine.color = new Color3(0.2, 0.3, 0.5);
-      orbitLine.alpha = 0.3;
-    }
+  private getCurrentPlanets(): ProceduralPlanet[] {
+    if (!this.galaxy) return [];
+    return this.galaxy.getCurrentSystem().getPlanets();
   }
 
   private setupControls(): void {
@@ -348,14 +235,27 @@ export class Game {
         case 'KeyH':
           this.uiOverlay.toggleHelp();
           break;
+        case 'KeyN':
+        case 'ArrowRight':
+          this.travelToNextSystem();
+          break;
+        case 'KeyP':
+        case 'ArrowLeft':
+          this.travelToPreviousSystem();
+          break;
         case 'Digit1':
         case 'Digit2':
         case 'Digit3':
         case 'Digit4':
         case 'Digit5':
+        case 'Digit6':
+        case 'Digit7':
+        case 'Digit8':
+        case 'Digit9':
           const index = parseInt(event.code.replace('Digit', '')) - 1;
-          if (index < this.proceduralPlanets.length) {
-            this.focusPlanet(this.proceduralPlanets[index]);
+          const planets = this.getCurrentPlanets();
+          if (index < planets.length) {
+            this.focusPlanet(planets[index]);
           }
           break;
       }
@@ -365,7 +265,8 @@ export class Game {
     this.scene.onPointerDown = (_evt, pickResult) => {
       if (pickResult.hit && pickResult.pickedMesh) {
         const meshName = pickResult.pickedMesh.name;
-        const planet = this.proceduralPlanets.find(p => p.getName() === meshName || meshName.startsWith(p.getName()));
+        const planets = this.getCurrentPlanets();
+        const planet = planets.find(p => p.getName() === meshName || meshName.startsWith(p.getName()));
         if (planet) {
           this.focusPlanet(planet);
         }
@@ -374,7 +275,8 @@ export class Game {
   }
 
   private igniteSelectedPlanet(): void {
-    const selectedPlanet = this.proceduralPlanets.find(p => p.isSelected());
+    const planets = this.getCurrentPlanets();
+    const selectedPlanet = planets.find(p => p.isSelected());
     if (selectedPlanet && !selectedPlanet.isIgnited()) {
       selectedPlanet.ignite();
       this.gameState.ignitePlanet(selectedPlanet.getName());
@@ -383,8 +285,9 @@ export class Game {
   }
 
   private focusPlanet(planet: ProceduralPlanet): void {
-    // Deselect all planets
-    this.proceduralPlanets.forEach(p => p.setSelected(false));
+    // Deselect all planets in current system
+    const planets = this.getCurrentPlanets();
+    planets.forEach(p => p.setSelected(false));
     
     // Select this planet
     planet.setSelected(true);
@@ -403,8 +306,9 @@ export class Game {
     this.camera.beta = Math.PI / 3;
     this.camera.radius = 50;
     
-    // Deselect all planets
-    this.proceduralPlanets.forEach(p => p.setSelected(false));
+    // Deselect all planets in current system
+    const planets = this.getCurrentPlanets();
+    planets.forEach(p => p.setSelected(false));
     this.uiOverlay.clearSelection();
   }
 
@@ -421,16 +325,10 @@ export class Game {
     this.isRunning = true;
 
     this.engine.runRenderLoop(() => {
-      // Update all celestial bodies
-      this.proceduralPlanets.forEach(planet => planet.update());
-      
-      // Update asteroid belt
-      if (this.asteroidBelt) {
-        this.asteroidBelt.update();
+      // Update galaxy (which updates current solar system)
+      if (this.galaxy) {
+        this.galaxy.update();
       }
-      
-      // Update comets
-      this.comets.forEach(comet => comet.update());
       
       // Update UI
       this.uiOverlay.update();
@@ -448,10 +346,9 @@ export class Game {
   dispose(): void {
     this.stop();
     this.uiOverlay.dispose();
-    if (this.asteroidBelt) {
-      this.asteroidBelt.dispose();
+    if (this.galaxy) {
+      this.galaxy.dispose();
     }
-    this.comets.forEach(comet => comet.dispose());
     this.scene.dispose();
     this.engine.dispose();
   }
