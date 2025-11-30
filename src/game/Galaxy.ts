@@ -10,6 +10,12 @@ const SYSTEM_NAMES = [
   'Rigel Sector', 'Betelgeuse', 'Antares', 'Aldebaran', 'Arcturus'
 ];
 
+// Prime numbers used for seed hashing to ensure good distribution
+const HASH_PRIME_1 = 7919;
+const HASH_PRIME_2 = 104729;
+const HASH_GOLDEN_RATIO = 2654435769; // 2^32 / golden ratio
+const HASH_PRIME_3 = 65537;
+
 export interface GalaxyConfig {
   systemCount: number;
   seed?: number;
@@ -129,9 +135,9 @@ export class Galaxy {
   private hashSeed(baseSeed: number, index: number): number {
     // Mix the base seed with the index using prime multipliers for better distribution
     let hash = baseSeed;
-    hash = ((hash << 5) - hash + index * 7919) | 0; // 7919 is a prime
-    hash = ((hash << 7) - hash + index * 104729) | 0; // 104729 is another prime
-    hash = ((hash * 2654435769) >>> 0) ^ (index * 65537); // Golden ratio multiplier
+    hash = ((hash << 5) - hash + index * HASH_PRIME_1) | 0;
+    hash = ((hash << 7) - hash + index * HASH_PRIME_2) | 0;
+    hash = ((hash * HASH_GOLDEN_RATIO) >>> 0) ^ (index * HASH_PRIME_3);
     return Math.abs(hash);
   }
 

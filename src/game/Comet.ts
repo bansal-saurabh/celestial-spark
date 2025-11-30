@@ -1,5 +1,9 @@
 import { Scene, MeshBuilder, StandardMaterial, Color3, Vector3, Mesh, ParticleSystem, Color4, Texture } from '@babylonjs/core';
 
+// Constants for comet tail calculations
+const MIN_DISTANCE_THRESHOLD = 0.1; // Minimum distance to avoid division by zero
+const TAIL_BASE_DISTANCE = 50; // Base distance for tail intensity calculation
+
 export class Comet {
   private scene: Scene;
   private nucleus: Mesh | null = null;
@@ -150,7 +154,7 @@ export class Comet {
 
       // Update tail direction (always points away from sun/origin)
       // Avoid division by zero when nucleus is at origin
-      if (distance > 0.1) {
+      if (distance > MIN_DISTANCE_THRESHOLD) {
         const sunDirection = this.nucleus.position.normalize();
         this.tailParticles.direction1 = sunDirection.scale(2);
         this.tailParticles.direction2 = sunDirection.add(new Vector3(
@@ -161,7 +165,7 @@ export class Comet {
       }
 
       // Tail is more visible when closer to sun
-      const tailIntensity = Math.min(1, 50 / Math.max(distance, 0.1));
+      const tailIntensity = Math.min(1, TAIL_BASE_DISTANCE / Math.max(distance, MIN_DISTANCE_THRESHOLD));
       this.tailParticles.emitRate = 50 + tailIntensity * 150;
     }
 
