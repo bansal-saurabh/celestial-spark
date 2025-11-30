@@ -148,7 +148,8 @@ export class WarpEffect {
       ];
       rotateAnimation.setKeys(rotateKeys);
 
-      this.warpTunnel.animations.push(rotateAnimation);
+      // Clear previous animations before adding new one to prevent accumulation
+      this.warpTunnel.animations = [rotateAnimation];
       this.scene.beginAnimation(this.warpTunnel, 0, 120, false);
     }
   }

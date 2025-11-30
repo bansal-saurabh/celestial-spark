@@ -149,16 +149,19 @@ export class Comet {
       this.tailParticles.emitter = this.nucleus.position.clone();
 
       // Update tail direction (always points away from sun/origin)
-      const sunDirection = this.nucleus.position.normalize();
-      this.tailParticles.direction1 = sunDirection.scale(2);
-      this.tailParticles.direction2 = sunDirection.add(new Vector3(
-        (Math.random() - 0.5) * 0.3,
-        (Math.random() - 0.5) * 0.3,
-        (Math.random() - 0.5) * 0.3
-      )).scale(2);
+      // Avoid division by zero when nucleus is at origin
+      if (distance > 0.1) {
+        const sunDirection = this.nucleus.position.normalize();
+        this.tailParticles.direction1 = sunDirection.scale(2);
+        this.tailParticles.direction2 = sunDirection.add(new Vector3(
+          (Math.random() - 0.5) * 0.3,
+          (Math.random() - 0.5) * 0.3,
+          (Math.random() - 0.5) * 0.3
+        )).scale(2);
+      }
 
       // Tail is more visible when closer to sun
-      const tailIntensity = Math.min(1, 50 / distance);
+      const tailIntensity = Math.min(1, 50 / Math.max(distance, 0.1));
       this.tailParticles.emitRate = 50 + tailIntensity * 150;
     }
 
