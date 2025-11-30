@@ -1,9 +1,10 @@
 import { Scene, Vector3, MeshBuilder, StandardMaterial, Color3, PointLight, ParticleSystem, Color4, Texture, GlowLayer, Mesh } from '@babylonjs/core';
 import { ProceduralPlanet } from './ProceduralPlanet';
+import type { PlanetType } from './ProceduralPlanet';
 import { AsteroidBelt } from './AsteroidBelt';
 import { Comet } from './Comet';
 
-export type StarType = 'yellow_dwarf' | 'red_dwarf' | 'blue_giant' | 'orange_giant' | 'white_dwarf' | 'red_giant';
+export type StarType = 'yellow_dwarf' | 'red_dwarf' | 'blue_giant' | 'orange_giant' | 'white_dwarf' | 'red_giant' | 'deep_orange';
 
 export interface StarConfig {
   type: StarType;
@@ -14,6 +15,12 @@ export interface StarConfig {
   lightIntensity: number;
   coronaColor1: Color4;
   coronaColor2: Color4;
+}
+
+// Habitable zone configuration for each star type
+export interface HabitableZone {
+  inner: number; // Inner edge of habitable zone (AU equivalent)
+  outer: number; // Outer edge of habitable zone (AU equivalent)
 }
 
 export interface SolarSystemConfig {
@@ -73,13 +80,33 @@ export const STAR_TEMPLATES: Record<StarType, Omit<StarConfig, 'name'>> = {
   },
   red_giant: {
     type: 'red_giant',
-    size: 16,
-    color: new Color3(1, 0.5, 0.3),
-    emissiveColor: new Color3(1, 0.4, 0.2),
-    lightIntensity: 3,
-    coronaColor1: new Color4(1, 0.5, 0.2, 1),
-    coronaColor2: new Color4(0.9, 0.3, 0.1, 1),
+    size: 18,
+    color: new Color3(1, 0.35, 0.2),
+    emissiveColor: new Color3(1, 0.3, 0.15),
+    lightIntensity: 3.5,
+    coronaColor1: new Color4(1, 0.4, 0.15, 1),
+    coronaColor2: new Color4(0.95, 0.25, 0.08, 1),
   },
+  deep_orange: {
+    type: 'deep_orange',
+    size: 10,
+    color: new Color3(1, 0.55, 0.15),
+    emissiveColor: new Color3(1, 0.5, 0.1),
+    lightIntensity: 2.2,
+    coronaColor1: new Color4(1, 0.6, 0.2, 1),
+    coronaColor2: new Color4(1, 0.35, 0.05, 1),
+  },
+};
+
+// Habitable zone distances for each star type
+export const HABITABLE_ZONES: Record<StarType, HabitableZone> = {
+  yellow_dwarf: { inner: 25, outer: 45 },
+  red_dwarf: { inner: 12, outer: 22 },
+  blue_giant: { inner: 60, outer: 100 },
+  orange_giant: { inner: 35, outer: 60 },
+  white_dwarf: { inner: 8, outer: 15 },
+  red_giant: { inner: 50, outer: 80 },
+  deep_orange: { inner: 30, outer: 50 },
 };
 
 // Planet name prefixes for generation
@@ -238,7 +265,9 @@ export class SolarSystem {
         planetConfig.hasRings,
         planetConfig.orbitSpeed,
         this.scene,
-        this.glowLayer
+        this.glowLayer,
+        planetConfig.planetType,
+        planetConfig.isHabitable
       );
 
       await planet.create();
@@ -251,9 +280,10 @@ export class SolarSystem {
     switch (this.config.star.type) {
       case 'red_dwarf': return 8;
       case 'blue_giant': return 18;
-      case 'red_giant': return 20;
+      case 'red_giant': return 22;
       case 'orange_giant': return 15;
       case 'white_dwarf': return 6;
+      case 'deep_orange': return 14;
       default: return 12;
     }
   }
@@ -265,6 +295,8 @@ export class SolarSystem {
     color: Color3;
     hasRings: boolean;
     orbitSpeed: number;
+    planetType: PlanetType;
+    isHabitable: boolean;
   } {
     // Use system ID and index for consistent random generation
     const seed = this.hashString(`${this.config.id}_planet_${index}`);
@@ -275,51 +307,132 @@ export class SolarSystem {
     const suffixIndex = Math.floor(random() * PLANET_SUFFIXES.length);
     const name = `${PLANET_PREFIXES[prefixIndex]} ${PLANET_SUFFIXES[suffixIndex]}`;
 
-    // Size based on distance (inner planets tend to be smaller)
-    const sizeBase = index < 2 ? 0.8 : 1.5;
-    const size = sizeBase + random() * 2;
+    // Determine planet type based on distance and star type
+    const planetType = this.determinePlanetType(distance, random);
+    
+    // Size based on planet type
+    const size = this.getSizeForPlanetType(planetType, random);
 
-    // Color based on distance from star
-    const color = this.generatePlanetColor(distance, random);
+    // Color based on planet type
+    const color = this.getColorForPlanetType(planetType, random);
 
-    // Rings more likely on larger, outer planets
-    const hasRings = size > 2 && random() > 0.6;
+    // Check if in habitable zone
+    const habitableZone = HABITABLE_ZONES[this.config.star.type];
+    const isInHabitableZone = distance >= habitableZone.inner && distance <= habitableZone.outer;
+    
+    // Habitable only if in zone AND suitable planet type
+    const habitablePlanetTypes: PlanetType[] = ['earth_like', 'mars_like', 'ocean'];
+    const isHabitable = isInHabitableZone && habitablePlanetTypes.includes(planetType);
+
+    // Rings more likely on gas giants and ice giants
+    const hasRings = (planetType === 'gas_giant' || planetType === 'ice_giant') && random() > 0.4;
 
     // Orbital speed inversely proportional to distance
     const orbitSpeed = 0.003 / Math.sqrt(distance / 15);
 
-    return { name, distance, size, color, hasRings, orbitSpeed };
+    return { name, distance, size, color, hasRings, orbitSpeed, planetType, isHabitable };
   }
 
-  private generatePlanetColor(distance: number, random: () => number): Color3 {
-    // Inner planets: more red/brown (hot)
-    // Middle planets: varied colors
-    // Outer planets: more blue/white (cold)
+  private determinePlanetType(distance: number, random: () => number): PlanetType {
+    const habitableZone = HABITABLE_ZONES[this.config.star.type];
     
-    if (distance < 25) {
-      // Inner - rocky, hot planets
-      return new Color3(
-        0.5 + random() * 0.4,
-        0.3 + random() * 0.3,
-        0.2 + random() * 0.2
-      );
-    } else if (distance < 50) {
-      // Middle - varied
-      const type = Math.floor(random() * 4);
-      switch (type) {
-        case 0: return new Color3(0.3 + random() * 0.2, 0.5 + random() * 0.3, 0.8); // Ocean
-        case 1: return new Color3(0.4 + random() * 0.2, 0.6 + random() * 0.2, 0.4); // Forest
-        case 2: return new Color3(0.8 + random() * 0.2, 0.6 + random() * 0.2, 0.3); // Desert
-        default: return new Color3(0.6 + random() * 0.2, 0.5 + random() * 0.2, 0.5); // Rocky
-      }
-    } else {
-      // Outer - cold, gas giants
-      const type = Math.floor(random() * 3);
-      switch (type) {
-        case 0: return new Color3(0.2, 0.4 + random() * 0.3, 0.7 + random() * 0.3); // Ice blue
-        case 1: return new Color3(0.7 + random() * 0.2, 0.75 + random() * 0.2, 0.8 + random() * 0.2); // Ice white
-        default: return new Color3(0.3, 0.4 + random() * 0.2, 0.6 + random() * 0.2); // Gas blue
-      }
+    // Very close to star - red hot
+    if (distance < habitableZone.inner * 0.5) {
+      return 'red_hot';
+    }
+    
+    // Close to star but not too close - rocky or desert
+    if (distance < habitableZone.inner) {
+      const roll = random();
+      if (roll < 0.5) return 'rocky';
+      if (roll < 0.8) return 'desert';
+      return 'mars_like';
+    }
+    
+    // In habitable zone - variety of habitable types
+    if (distance <= habitableZone.outer) {
+      const roll = random();
+      if (roll < 0.35) return 'earth_like';
+      if (roll < 0.55) return 'ocean';
+      if (roll < 0.75) return 'mars_like';
+      if (roll < 0.9) return 'desert';
+      return 'rocky';
+    }
+    
+    // Just outside habitable zone - could be mars-like or icy
+    if (distance <= habitableZone.outer * 1.5) {
+      const roll = random();
+      if (roll < 0.4) return 'mars_like';
+      if (roll < 0.7) return 'icy_cold';
+      return 'rocky';
+    }
+    
+    // Far from star - gas giants, ice giants, or icy
+    const roll = random();
+    if (roll < 0.4) return 'gas_giant';
+    if (roll < 0.7) return 'ice_giant';
+    return 'icy_cold';
+  }
+
+  private getSizeForPlanetType(planetType: PlanetType, random: () => number): number {
+    switch (planetType) {
+      case 'gas_giant':
+        return 2.5 + random() * 2; // 2.5 - 4.5
+      case 'ice_giant':
+        return 2 + random() * 1.5; // 2 - 3.5
+      case 'earth_like':
+        return 0.9 + random() * 0.4; // 0.9 - 1.3
+      case 'ocean':
+        return 0.8 + random() * 0.5; // 0.8 - 1.3
+      case 'mars_like':
+        return 0.5 + random() * 0.4; // 0.5 - 0.9
+      case 'red_hot':
+        return 0.4 + random() * 0.5; // 0.4 - 0.9
+      case 'icy_cold':
+        return 0.6 + random() * 0.8; // 0.6 - 1.4
+      case 'desert':
+        return 0.7 + random() * 0.5; // 0.7 - 1.2
+      case 'rocky':
+      default:
+        return 0.5 + random() * 0.7; // 0.5 - 1.2
+    }
+  }
+
+  private getColorForPlanetType(planetType: PlanetType, random: () => number): Color3 {
+    switch (planetType) {
+      case 'earth_like':
+        // Blue and green tones
+        return new Color3(0.2 + random() * 0.2, 0.5 + random() * 0.2, 0.7 + random() * 0.2);
+      case 'mars_like':
+        // Rusty red/orange
+        return new Color3(0.8 + random() * 0.15, 0.35 + random() * 0.15, 0.2 + random() * 0.1);
+      case 'gas_giant':
+        // Jupiter-like bands (orange/brown/yellow)
+        const gasRoll = random();
+        if (gasRoll < 0.5) {
+          return new Color3(0.85 + random() * 0.1, 0.6 + random() * 0.2, 0.4 + random() * 0.15);
+        }
+        // Saturn-like (golden/beige)
+        return new Color3(0.9 + random() * 0.1, 0.8 + random() * 0.15, 0.5 + random() * 0.15);
+      case 'ice_giant':
+        // Neptune/Uranus blue-green
+        return new Color3(0.2 + random() * 0.15, 0.5 + random() * 0.2, 0.8 + random() * 0.15);
+      case 'icy_cold':
+        // White/light blue
+        return new Color3(0.8 + random() * 0.15, 0.85 + random() * 0.1, 0.95);
+      case 'red_hot':
+        // Bright red/orange volcanic
+        return new Color3(0.95, 0.25 + random() * 0.2, 0.1 + random() * 0.1);
+      case 'ocean':
+        // Deep blue
+        return new Color3(0.15 + random() * 0.1, 0.4 + random() * 0.2, 0.85 + random() * 0.1);
+      case 'desert':
+        // Sandy tan/brown
+        return new Color3(0.85 + random() * 0.1, 0.7 + random() * 0.15, 0.45 + random() * 0.15);
+      case 'rocky':
+      default:
+        // Gray/brown rocky
+        return new Color3(0.5 + random() * 0.2, 0.45 + random() * 0.15, 0.4 + random() * 0.15);
     }
   }
 
@@ -448,6 +561,14 @@ export class SolarSystem {
 
   getPlanets(): ProceduralPlanet[] {
     return this.planets;
+  }
+
+  getHabitablePlanets(): ProceduralPlanet[] {
+    return this.planets.filter(planet => planet.getIsHabitable());
+  }
+
+  getEvolvablePlanets(): ProceduralPlanet[] {
+    return this.planets.filter(planet => planet.canEvolve());
   }
 
   getStarPosition(): Vector3 {

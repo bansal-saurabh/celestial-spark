@@ -1,6 +1,6 @@
 import { Application, Container, Graphics, Text, TextStyle } from 'pixi.js';
 import { GameState } from '../game/GameState';
-import type { PlanetInfo } from '../game/ProceduralPlanet';
+import type { PlanetInfo, ProceduralPlanet } from '../game/ProceduralPlanet';
 import { TouchControls } from './TouchControls';
 import type { TouchControlsCallbacks } from './TouchControls';
 import { isMobileDevice } from '../utils/deviceUtils';
@@ -15,6 +15,7 @@ export class UIOverlay {
   private notificationContainer: Container;
   private helpPanel: Container;
   private systemInfoPanel: Container;
+  private dialogContainer: Container;
   private touchControls: TouchControls | null = null;
   private isHelpVisible: boolean = false;
   private currentNotification: Container | null = null;
@@ -24,6 +25,7 @@ export class UIOverlay {
   private currentSystemName: string = '';
   private currentSystemIndex: number = 1;
   private totalSystems: number = 1;
+  private activeDialog: Container | null = null;
 
   constructor(gameState: GameState, callbacks: TouchControlsCallbacks) {
     this.gameState = gameState;
@@ -36,6 +38,7 @@ export class UIOverlay {
     this.notificationContainer = new Container();
     this.helpPanel = new Container();
     this.systemInfoPanel = new Container();
+    this.dialogContainer = new Container();
     this.isMobile = isMobileDevice();
   }
 
@@ -65,6 +68,7 @@ export class UIOverlay {
     this.hudContainer.addChild(this.notificationContainer);
     this.hudContainer.addChild(this.helpPanel);
     this.hudContainer.addChild(this.systemInfoPanel);
+    this.hudContainer.addChild(this.dialogContainer);
 
     // Initialize touch controls for mobile
     if (this.isMobile) {
@@ -157,7 +161,7 @@ export class UIOverlay {
   private createControlsPanel(): void {
     // Background
     const bg = new Graphics();
-    bg.roundRect(0, 0, 180, 130, 8);
+    bg.roundRect(0, 0, 180, 140, 8);
     bg.fill({ color: 0x001428, alpha: 0.7 });
     bg.stroke({ width: 1, color: 0x4080ff, alpha: 0.3 });
     this.controlsPanel.addChild(bg);
@@ -185,11 +189,11 @@ export class UIOverlay {
     const controls = [
       'Mouse: Rotate view',
       'Scroll: Zoom in/out',
-      'Space: Ignite planet',
+      'Space: Evolve planet',
+      'E: Advance evolution',
       'N/→: Next system',
       'P/←: Prev system',
       'R: Reset view',
-      'H: Toggle help',
     ];
 
     controls.forEach((text, i) => {
@@ -206,7 +210,7 @@ export class UIOverlay {
   private createHelpPanel(): void {
     // Background
     const bg = new Graphics();
-    bg.roundRect(0, 0, 400, 360, 8);
+    bg.roundRect(0, 0, 400, 400, 8);
     bg.fill({ color: 0x001428, alpha: 0.9 });
     bg.stroke({ width: 1, color: 0x4080ff, alpha: 0.5 });
     this.helpPanel.addChild(bg);
@@ -235,38 +239,43 @@ export class UIOverlay {
 
     // Different help text for mobile vs desktop
     const helpText = this.isMobile 
-      ? `Welcome to Celestial Spark, a cosmic adventure where you explore and ignite new worlds across the galaxy!
+      ? `Welcome to Celestial Spark, a cosmic adventure where you explore and evolve life on habitable worlds!
 
-Your mission is to discover and ignite all planets across multiple solar systems, bringing life and civilization to the cosmos.
+Your mission is to find habitable planets in the habitable zones of various star systems and guide the evolution of life from microbial to intelligent civilizations.
+
+Planet Types: Earth-like, Mars-like, Gas Giants, Ice Giants, Icy Cold, Red Hot, Ocean, Desert, Rocky
 
 Touch Controls:
 • One finger drag: Rotate camera
 • Two finger pinch: Zoom in/out
 • Tap on a planet: Select it
-• IGNITE button: Ignite selected planet
+• EVOLVE button: Start evolution on habitable planet
+• ▶▶ button: Advance evolution stage
+• ❚❚ button: Pause/resume evolution
 • ◀/▶ buttons: Travel between systems
 • +/- buttons: Zoom controls
-• R button: Reset camera view
-• ? button: Toggle this help panel
 
-Tip: Different star systems have unique stars and planets to discover!`
-      : `Welcome to Celestial Spark, a cosmic adventure where you explore and ignite new worlds across the galaxy!
+Tip: Look for Earth-like, Ocean, and Mars-like planets in the habitable zone!`
+      : `Welcome to Celestial Spark, a cosmic adventure where you explore and evolve life on habitable worlds!
 
-Your mission is to discover and ignite all planets across multiple solar systems, bringing life and civilization to the cosmos.
+Your mission is to find habitable planets in the habitable zones of various star systems and guide the evolution of life from microbial to intelligent civilizations.
+
+Planet Types: Earth-like, Mars-like, Gas Giants, Ice Giants, Icy Cold, Red Hot, Ocean, Desert, Rocky
 
 Controls:
 • Left-click + drag: Rotate camera
 • Right-click + drag: Pan camera
 • Scroll wheel: Zoom in/out
 • Click on a planet: Select it
-• Space: Ignite selected planet
+• Space: Evolve selected habitable planet
+• E: Advance evolution stage
 • N or →: Travel to next system
 • P or ←: Travel to previous system
 • 1-9: Quick select planets
 • R: Reset camera view
 • H: Toggle this help panel
 
-Tip: Different star systems have unique stars and planets to discover!`;
+Tip: Look for Earth-like, Ocean, and Mars-like planets in the habitable zone!`;
 
     const description = new Text({ 
       text: helpText,
@@ -278,7 +287,7 @@ Tip: Different star systems have unique stars and planets to discover!`;
 
     // Position centered
     this.helpPanel.x = (window.innerWidth - 400) / 2;
-    this.helpPanel.y = (window.innerHeight - 360) / 2;
+    this.helpPanel.y = (window.innerHeight - 400) / 2;
     this.helpPanel.visible = false;
   }
 
@@ -331,18 +340,26 @@ Tip: Different star systems have unique stars and planets to discover!`;
     // Clear existing planet info
     this.planetInfoPanel.removeChildren();
 
-    // Background
+    // Determine border color based on state
+    let borderColor = 0x4080ff;
+    if (info.ignited) {
+      borderColor = info.evolutionStage === 'intelligent' ? 0x80ff80 : 0xffaa40;
+    } else if (info.isHabitable) {
+      borderColor = 0x22cc44;
+    }
+
+    // Background - taller to fit more info
     const bg = new Graphics();
-    bg.roundRect(0, 0, 220, 160, 8);
+    bg.roundRect(0, 0, 230, 200, 8);
     bg.fill({ color: 0x001428, alpha: 0.7 });
-    bg.stroke({ width: 1, color: info.ignited ? 0xffaa40 : 0x4080ff, alpha: 0.5 });
+    bg.stroke({ width: 1, color: borderColor, alpha: 0.5 });
     this.planetInfoPanel.addChild(bg);
 
     // Title
     const titleStyle = new TextStyle({
       fontFamily: 'Segoe UI, system-ui, sans-serif',
       fontSize: 16,
-      fill: info.ignited ? 0xffcc80 : 0x80c0ff,
+      fill: info.ignited ? 0xffcc80 : (info.isHabitable ? 0x80ffaa : 0x80c0ff),
       fontWeight: 'bold',
     });
     const title = new Text({ text: name, style: titleStyle });
@@ -350,15 +367,28 @@ Tip: Different star systems have unique stars and planets to discover!`;
     title.y = 10;
     this.planetInfoPanel.addChild(title);
 
-    // Status badge
+    // Status badge - show evolution stage or habitability
     const statusStyle = new TextStyle({
       fontFamily: 'Segoe UI, system-ui, sans-serif',
-      fontSize: 10,
-      fill: info.ignited ? 0x80ff80 : 0xff8080,
+      fontSize: 9,
+      fill: info.ignited ? 0x80ff80 : (info.isHabitable ? 0x44dd66 : 0xff8080),
       fontWeight: 'bold',
     });
-    const status = new Text({ text: info.ignited ? 'IGNITED' : 'DORMANT', style: statusStyle });
-    status.x = 205;
+    let statusText = 'DORMANT';
+    if (info.ignited) {
+      const stageNames: Record<string, string> = {
+        'dormant': 'STARTING',
+        'microbial': 'MICROBIAL',
+        'plant_life': 'PLANT LIFE',
+        'animal_life': 'ANIMAL LIFE',
+        'intelligent': 'INTELLIGENT'
+      };
+      statusText = stageNames[info.evolutionStage] || info.evolutionStage.toUpperCase();
+    } else if (info.isHabitable) {
+      statusText = 'HABITABLE';
+    }
+    const status = new Text({ text: statusText, style: statusStyle });
+    status.x = 215;
     status.y = 14;
     status.anchor.set(1, 0);
     this.planetInfoPanel.addChild(status);
@@ -381,40 +411,66 @@ Tip: Different star systems have unique stars and planets to discover!`;
       { label: 'Distance:', value: `${info.distance} AU` },
       { label: 'Size:', value: `${info.size} Earth radii` },
       { label: 'Atmosphere:', value: info.atmosphere },
-      { label: 'Population:', value: info.population },
+      { label: 'Habitable:', value: info.isHabitable ? 'Yes' : 'No' },
+      { label: 'Status:', value: info.population },
     ];
 
     infoItems.forEach((item, i) => {
       const labelText = new Text({ text: item.label, style: labelStyle });
       labelText.x = 15;
-      labelText.y = 40 + i * 18;
+      labelText.y = 38 + i * 18;
       this.planetInfoPanel.addChild(labelText);
 
       const valueText = new Text({ text: item.value, style: valueStyle });
-      valueText.x = 205;
-      valueText.y = 40 + i * 18;
+      valueText.x = 215;
+      valueText.y = 38 + i * 18;
       valueText.anchor.set(1, 0);
       this.planetInfoPanel.addChild(valueText);
     });
 
     // Action hint
-    if (!info.ignited) {
+    if (!info.ignited && info.isHabitable) {
+      const hintStyle = new TextStyle({
+        fontFamily: 'Segoe UI, system-ui, sans-serif',
+        fontSize: 11,
+        fill: 0x44dd66,
+        fontStyle: 'italic',
+      });
+      const hintText = this.isMobile ? 'Tap EVOLVE button' : 'Press SPACE to evolve';
+      const hint = new Text({ text: hintText, style: hintStyle });
+      hint.x = 115;
+      hint.y = 180;
+      hint.anchor.set(0.5, 0);
+      this.planetInfoPanel.addChild(hint);
+    } else if (!info.ignited && !info.isHabitable) {
+      const hintStyle = new TextStyle({
+        fontFamily: 'Segoe UI, system-ui, sans-serif',
+        fontSize: 10,
+        fill: 0x808080,
+        fontStyle: 'italic',
+      });
+      const hint = new Text({ text: 'Not in habitable zone', style: hintStyle });
+      hint.x = 115;
+      hint.y = 180;
+      hint.anchor.set(0.5, 0);
+      this.planetInfoPanel.addChild(hint);
+    } else if (info.ignited && info.evolutionStage !== 'intelligent') {
       const hintStyle = new TextStyle({
         fontFamily: 'Segoe UI, system-ui, sans-serif',
         fontSize: 11,
         fill: 0x80c0ff,
         fontStyle: 'italic',
       });
-      const hintText = this.isMobile ? 'Tap IGNITE button' : 'Press SPACE to ignite';
+      const hintText = this.isMobile ? 'Tap ▶▶ to advance' : 'Press E to advance';
       const hint = new Text({ text: hintText, style: hintStyle });
-      hint.x = 110;
-      hint.y = 140;
+      hint.x = 115;
+      hint.y = 180;
       hint.anchor.set(0.5, 0);
       this.planetInfoPanel.addChild(hint);
     }
 
     // Position panel
-    this.planetInfoPanel.x = window.innerWidth - 240;
+    this.planetInfoPanel.x = window.innerWidth - 250;
     this.planetInfoPanel.y = 20;
   }
 
@@ -489,11 +545,11 @@ Tip: Different star systems have unique stars and planets to discover!`;
     this.statsPanel.y = this.isMobile ? 90 : 20;
     
     if (this.planetInfoPanel.children.length > 0) {
-      this.planetInfoPanel.x = window.innerWidth - 240;
+      this.planetInfoPanel.x = window.innerWidth - 250;
     }
 
     this.helpPanel.x = (window.innerWidth - 400) / 2;
-    this.helpPanel.y = (window.innerHeight - 360) / 2;
+    this.helpPanel.y = (window.innerHeight - 400) / 2;
 
     // Reposition system info panel
     this.systemInfoPanel.x = window.innerWidth / 2;
@@ -504,6 +560,219 @@ Tip: Different star systems have unique stars and planets to discover!`;
     }
   }
 
+  // Dialog methods for evolution feature
+  showNoHabitablePlanetsDialog(onConfirm: () => void): void {
+    this.closeActiveDialog();
+
+    const dialog = new Container();
+
+    // Background overlay
+    const overlay = new Graphics();
+    overlay.rect(0, 0, window.innerWidth, window.innerHeight);
+    overlay.fill({ color: 0x000000, alpha: 0.6 });
+    dialog.addChild(overlay);
+
+    // Dialog box
+    const dialogWidth = 350;
+    const dialogHeight = 180;
+    const dialogBg = new Graphics();
+    dialogBg.roundRect(0, 0, dialogWidth, dialogHeight, 12);
+    dialogBg.fill({ color: 0x001428, alpha: 0.95 });
+    dialogBg.stroke({ width: 2, color: 0xff6644, alpha: 0.7 });
+    dialogBg.x = (window.innerWidth - dialogWidth) / 2;
+    dialogBg.y = (window.innerHeight - dialogHeight) / 2;
+    dialog.addChild(dialogBg);
+
+    // Title
+    const titleStyle = new TextStyle({
+      fontFamily: 'Segoe UI, system-ui, sans-serif',
+      fontSize: 18,
+      fill: 0xff8866,
+      fontWeight: 'bold',
+    });
+    const title = new Text({ text: 'No Habitable Planets', style: titleStyle });
+    title.x = dialogBg.x + dialogWidth / 2;
+    title.y = dialogBg.y + 25;
+    title.anchor.set(0.5, 0);
+    dialog.addChild(title);
+
+    // Message
+    const msgStyle = new TextStyle({
+      fontFamily: 'Segoe UI, system-ui, sans-serif',
+      fontSize: 14,
+      fill: 0xc8dcff,
+      wordWrap: true,
+      wordWrapWidth: dialogWidth - 40,
+      align: 'center',
+    });
+    const message = new Text({ 
+      text: 'This solar system has no habitable planets in its habitable zone.\n\nWould you like to travel to another system?', 
+      style: msgStyle 
+    });
+    message.x = dialogBg.x + dialogWidth / 2;
+    message.y = dialogBg.y + 55;
+    message.anchor.set(0.5, 0);
+    dialog.addChild(message);
+
+    // Buttons
+    const buttonWidth = 100;
+    const buttonHeight = 35;
+    const buttonY = dialogBg.y + dialogHeight - 50;
+
+    // Yes button
+    const yesButton = this.createDialogButton('Travel', dialogBg.x + dialogWidth / 2 - buttonWidth - 15, buttonY, buttonWidth, buttonHeight, 0x22aa44, () => {
+      this.closeActiveDialog();
+      onConfirm();
+    });
+    dialog.addChild(yesButton);
+
+    // Cancel button
+    const cancelButton = this.createDialogButton('Cancel', dialogBg.x + dialogWidth / 2 + 15, buttonY, buttonWidth, buttonHeight, 0x666688, () => {
+      this.closeActiveDialog();
+    });
+    dialog.addChild(cancelButton);
+
+    this.dialogContainer.addChild(dialog);
+    this.activeDialog = dialog;
+  }
+
+  showPlanetSelectionDialog(planets: ProceduralPlanet[], onSelect: (planet: ProceduralPlanet) => void): void {
+    this.closeActiveDialog();
+
+    const dialog = new Container();
+
+    // Background overlay
+    const overlay = new Graphics();
+    overlay.rect(0, 0, window.innerWidth, window.innerHeight);
+    overlay.fill({ color: 0x000000, alpha: 0.6 });
+    dialog.addChild(overlay);
+
+    // Dialog box
+    const dialogWidth = 320;
+    const buttonHeight = 40;
+    const dialogHeight = 100 + planets.length * (buttonHeight + 10) + 50;
+    const dialogBg = new Graphics();
+    dialogBg.roundRect(0, 0, dialogWidth, dialogHeight, 12);
+    dialogBg.fill({ color: 0x001428, alpha: 0.95 });
+    dialogBg.stroke({ width: 2, color: 0x22cc44, alpha: 0.7 });
+    dialogBg.x = (window.innerWidth - dialogWidth) / 2;
+    dialogBg.y = (window.innerHeight - dialogHeight) / 2;
+    dialog.addChild(dialogBg);
+
+    // Title
+    const titleStyle = new TextStyle({
+      fontFamily: 'Segoe UI, system-ui, sans-serif',
+      fontSize: 18,
+      fill: 0x44dd66,
+      fontWeight: 'bold',
+    });
+    const title = new Text({ text: 'Choose Planet to Evolve', style: titleStyle });
+    title.x = dialogBg.x + dialogWidth / 2;
+    title.y = dialogBg.y + 20;
+    title.anchor.set(0.5, 0);
+    dialog.addChild(title);
+
+    // Subtitle
+    const subtitleStyle = new TextStyle({
+      fontFamily: 'Segoe UI, system-ui, sans-serif',
+      fontSize: 12,
+      fill: 0x96b4dc,
+    });
+    const subtitle = new Text({ text: `${planets.length} habitable planets found`, style: subtitleStyle });
+    subtitle.x = dialogBg.x + dialogWidth / 2;
+    subtitle.y = dialogBg.y + 48;
+    subtitle.anchor.set(0.5, 0);
+    dialog.addChild(subtitle);
+
+    // Planet buttons
+    planets.forEach((planet, i) => {
+      const info = planet.getInfo();
+      const buttonY = dialogBg.y + 75 + i * (buttonHeight + 10);
+      const planetButton = this.createDialogButton(
+        `${planet.getName()} (${info.type})`,
+        dialogBg.x + 20,
+        buttonY,
+        dialogWidth - 40,
+        buttonHeight,
+        0x2288aa,
+        () => {
+          this.closeActiveDialog();
+          onSelect(planet);
+        }
+      );
+      dialog.addChild(planetButton);
+    });
+
+    // Cancel button
+    const cancelY = dialogBg.y + dialogHeight - 45;
+    const cancelButton = this.createDialogButton('Cancel', dialogBg.x + dialogWidth / 2 - 50, cancelY, 100, 30, 0x666688, () => {
+      this.closeActiveDialog();
+    });
+    dialog.addChild(cancelButton);
+
+    this.dialogContainer.addChild(dialog);
+    this.activeDialog = dialog;
+  }
+
+  private createDialogButton(text: string, x: number, y: number, width: number, height: number, color: number, onClick: () => void): Container {
+    const button = new Container();
+    button.x = x;
+    button.y = y;
+    button.eventMode = 'static';
+    button.cursor = 'pointer';
+
+    const bg = new Graphics();
+    bg.roundRect(0, 0, width, height, 6);
+    bg.fill({ color: color, alpha: 0.8 });
+    bg.stroke({ width: 1, color: 0xffffff, alpha: 0.3 });
+    button.addChild(bg);
+
+    const textStyle = new TextStyle({
+      fontFamily: 'Segoe UI, system-ui, sans-serif',
+      fontSize: text.length > 20 ? 11 : 14,
+      fill: 0xffffff,
+      fontWeight: 'bold',
+    });
+    const label = new Text({ text, style: textStyle });
+    label.x = width / 2;
+    label.y = height / 2;
+    label.anchor.set(0.5, 0.5);
+    button.addChild(label);
+
+    button.on('pointerdown', () => {
+      bg.clear();
+      bg.roundRect(0, 0, width, height, 6);
+      bg.fill({ color: color, alpha: 1 });
+      bg.stroke({ width: 1, color: 0xffffff, alpha: 0.5 });
+    });
+
+    button.on('pointerup', () => {
+      onClick();
+    });
+
+    button.on('pointerupoutside', () => {
+      bg.clear();
+      bg.roundRect(0, 0, width, height, 6);
+      bg.fill({ color: color, alpha: 0.8 });
+      bg.stroke({ width: 1, color: 0xffffff, alpha: 0.3 });
+    });
+
+    return button;
+  }
+
+  private closeActiveDialog(): void {
+    if (this.activeDialog) {
+      this.dialogContainer.removeChild(this.activeDialog);
+      this.activeDialog = null;
+    }
+  }
+
+  setEvolutionControlsVisible(visible: boolean): void {
+    if (this.touchControls) {
+      this.touchControls.setEvolutionControlsVisible(visible);
+    }
+  }
+
   dispose(): void {
     if (this.notificationTimeout) {
       clearTimeout(this.notificationTimeout);
@@ -511,6 +780,7 @@ Tip: Different star systems have unique stars and planets to discover!`;
     if (this.touchControls) {
       this.touchControls.dispose();
     }
+    this.closeActiveDialog();
     this.app.destroy(true);
   }
 }

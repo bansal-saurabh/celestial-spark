@@ -18,6 +18,7 @@ export class Game {
   private glowLayer: GlowLayer;
   private isRunning: boolean = false;
   private isMobile: boolean = false;
+  private evolvingPlanet: ProceduralPlanet | null = null;
 
   constructor() {
     this.canvas = document.getElementById('babylon-canvas') as HTMLCanvasElement;
@@ -28,7 +29,9 @@ export class Game {
     this.camera = this.createCamera();
     this.starField = new StarField(this.scene);
     this.uiOverlay = new UIOverlay(this.gameState, {
-      onIgnite: () => this.igniteSelectedPlanet(),
+      onEvolve: () => this.handleEvolve(),
+      onAdvanceEvolution: () => this.advanceEvolution(),
+      onPauseEvolution: () => this.pauseEvolution(),
       onReset: () => this.resetCamera(),
       onHelp: () => this.uiOverlay.toggleHelp(),
       onZoomIn: () => this.zoomCamera(-10),
@@ -231,7 +234,10 @@ export class Game {
     document.addEventListener('keydown', (event) => {
       switch (event.code) {
         case 'Space':
-          this.igniteSelectedPlanet();
+          this.handleEvolve();
+          break;
+        case 'KeyE':
+          this.advanceEvolution();
           break;
         case 'KeyR':
           this.resetCamera();
@@ -278,14 +284,104 @@ export class Game {
     };
   }
 
-  private igniteSelectedPlanet(): void {
-    const planets = this.getCurrentPlanets();
-    const selectedPlanet = planets.find(p => p.isSelected());
-    if (selectedPlanet && !selectedPlanet.isIgnited()) {
-      selectedPlanet.ignite();
-      this.gameState.ignitePlanet(selectedPlanet.getName());
-      this.uiOverlay.showNotification(`${selectedPlanet.getName()} has been ignited!`);
+  private handleEvolve(): void {
+    if (!this.galaxy) return;
+    
+    const currentSystem = this.galaxy.getCurrentSystem();
+    const habitablePlanets = currentSystem.getHabitablePlanets();
+    const evolvablePlanets = currentSystem.getEvolvablePlanets();
+    
+    // Check if there's a selected planet that can evolve
+    const selectedPlanet = this.getCurrentPlanets().find(p => p.isSelected());
+    
+    if (selectedPlanet && selectedPlanet.canEvolve()) {
+      // Evolve the selected planet
+      this.startEvolution(selectedPlanet);
+      return;
     }
+    
+    // If no selected evolvable planet, check for habitable planets
+    if (evolvablePlanets.length === 0) {
+      if (habitablePlanets.length === 0) {
+        // No habitable planets in this system
+        this.uiOverlay.showNoHabitablePlanetsDialog(() => {
+          this.travelToNextSystem();
+        });
+      } else {
+        // All habitable planets already evolved
+        this.uiOverlay.showNotification('All habitable planets in this system are already evolving or fully evolved!');
+      }
+      return;
+    }
+    
+    if (evolvablePlanets.length === 1) {
+      // Only one evolvable planet - go to it and start evolution
+      const planet = evolvablePlanets[0];
+      this.focusPlanet(planet);
+      this.startEvolution(planet);
+    } else {
+      // Multiple evolvable planets - show selection dialog
+      this.uiOverlay.showPlanetSelectionDialog(evolvablePlanets, (selectedPlanet) => {
+        this.focusPlanet(selectedPlanet);
+        this.startEvolution(selectedPlanet);
+      });
+    }
+  }
+
+  private startEvolution(planet: ProceduralPlanet): void {
+    planet.startEvolution();
+    this.evolvingPlanet = planet;
+    this.gameState.ignitePlanet(planet.getName());
+    
+    const stageName = this.getEvolutionStageName(planet.getEvolutionStage());
+    this.uiOverlay.showNotification(`${planet.getName()} evolution started! Stage: ${stageName}`);
+    this.uiOverlay.setSelectedPlanet(planet.getName(), planet.getInfo());
+    this.uiOverlay.setEvolutionControlsVisible(true);
+  }
+
+  private advanceEvolution(): void {
+    if (this.evolvingPlanet && this.evolvingPlanet.isCurrentlyEvolving()) {
+      this.evolvingPlanet.advanceEvolution();
+      const stageName = this.getEvolutionStageName(this.evolvingPlanet.getEvolutionStage());
+      this.uiOverlay.showNotification(`Evolution advanced to: ${stageName}`);
+      this.uiOverlay.setSelectedPlanet(this.evolvingPlanet.getName(), this.evolvingPlanet.getInfo());
+      
+      if (this.evolvingPlanet.getEvolutionStage() === 'intelligent') {
+        this.uiOverlay.showNotification(`${this.evolvingPlanet.getName()} has achieved intelligent life! 🎉`);
+        this.uiOverlay.setEvolutionControlsVisible(false);
+        this.evolvingPlanet = null;
+      }
+    } else {
+      // Try to find selected planet that is evolving
+      const selectedPlanet = this.getCurrentPlanets().find(p => p.isSelected() && p.isCurrentlyEvolving());
+      if (selectedPlanet) {
+        this.evolvingPlanet = selectedPlanet;
+        this.advanceEvolution();
+      }
+    }
+  }
+
+  private pauseEvolution(): void {
+    if (this.evolvingPlanet) {
+      if (this.evolvingPlanet.isCurrentlyEvolving()) {
+        this.evolvingPlanet.pauseEvolution();
+        this.uiOverlay.showNotification('Evolution paused');
+      } else {
+        this.evolvingPlanet.resumeEvolution();
+        this.uiOverlay.showNotification('Evolution resumed');
+      }
+    }
+  }
+
+  private getEvolutionStageName(stage: string): string {
+    const stageNames: Record<string, string> = {
+      'dormant': 'Dormant',
+      'microbial': 'Microbial Life',
+      'plant_life': 'Plant Life',
+      'animal_life': 'Animal Life',
+      'intelligent': 'Intelligent Life'
+    };
+    return stageNames[stage] || stage;
   }
 
   private focusPlanet(planet: ProceduralPlanet): void {
