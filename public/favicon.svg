@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <radialGradient id="sparkGradient" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:1"/>
+      <stop offset="30%" style="stop-color:#80c0ff;stop-opacity:1"/>
+      <stop offset="60%" style="stop-color:#4080ff;stop-opacity:1"/>
+      <stop offset="100%" style="stop-color:#0040a0;stop-opacity:1"/>
+    </radialGradient>
+    <radialGradient id="glowGradient" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:0.8"/>
+      <stop offset="100%" style="stop-color:#4080ff;stop-opacity:0"/>
+    </radialGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- Background stars -->
+  <circle cx="15" cy="20" r="1" fill="#ffffff" opacity="0.6"/>
+  <circle cx="85" cy="25" r="1.5" fill="#ffffff" opacity="0.7"/>
+  <circle cx="25" cy="80" r="1" fill="#ffffff" opacity="0.5"/>
+  <circle cx="75" cy="75" r="1" fill="#ffffff" opacity="0.6"/>
+  <circle cx="90" cy="60" r="1" fill="#ffffff" opacity="0.4"/>
+  <circle cx="10" cy="55" r="1.5" fill="#ffffff" opacity="0.5"/>
+  
+  <!-- Outer glow -->
+  <circle cx="50" cy="50" r="30" fill="url(#glowGradient)" filter="url(#glow)"/>
+  
+  <!-- Main celestial body -->
+  <circle cx="50" cy="50" r="20" fill="url(#sparkGradient)" filter="url(#glow)"/>
+  
+  <!-- Spark rays -->
+  <g fill="#ffffff" opacity="0.9">
+    <polygon points="50,15 52,25 48,25"/>
+    <polygon points="50,85 52,75 48,75"/>
+    <polygon points="15,50 25,52 25,48"/>
+    <polygon points="85,50 75,52 75,48"/>
+    <polygon points="26,26 32,32 28,34"/>
+    <polygon points="74,26 68,32 72,34"/>
+    <polygon points="26,74 32,68 28,66"/>
+    <polygon points="74,74 68,68 72,66"/>
+  </g>
+</svg>

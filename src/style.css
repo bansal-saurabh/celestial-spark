@@ -1,0 +1,339 @@
+:root {
+  font-family: 'Segoe UI', system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  color-scheme: dark;
+  color: rgba(255, 255, 255, 0.95);
+  background-color: #000000;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  display: block;
+}
+
+#app {
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+
+#babylon-canvas {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 1;
+  touch-action: none;
+}
+
+#pixi-canvas {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+
+#ui-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 10;
+  pointer-events: none;
+}
+
+#ui-overlay > * {
+  pointer-events: auto;
+}
+
+/* Loading Screen */
+#loading-screen {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(ellipse at center, #0a0a20 0%, #000000 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  transition: opacity 1s ease-out;
+}
+
+#loading-screen.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.loading-content {
+  text-align: center;
+}
+
+.loading-content h1 {
+  font-size: 4rem;
+  color: #ffffff;
+  text-shadow: 0 0 30px rgba(100, 150, 255, 0.8), 0 0 60px rgba(100, 150, 255, 0.4);
+  margin-bottom: 0.5rem;
+  letter-spacing: 0.1em;
+}
+
+.loading-content p {
+  font-size: 1.2rem;
+  color: rgba(200, 220, 255, 0.8);
+  margin-bottom: 2rem;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+}
+
+.loading-bar {
+  width: 300px;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+  overflow: hidden;
+  margin: 0 auto;
+}
+
+.loading-progress {
+  width: 0%;
+  height: 100%;
+  background: linear-gradient(90deg, #4080ff, #80c0ff, #4080ff);
+  animation: loading 2s ease-in-out infinite;
+  transition: width 0.3s ease;
+}
+
+@keyframes loading {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(400%); }
+}
+
+/* HUD Elements */
+#hud {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.hud-element {
+  position: absolute;
+  padding: 1rem;
+  background: rgba(0, 20, 40, 0.7);
+  border: 1px solid rgba(100, 150, 255, 0.3);
+  border-radius: 8px;
+  backdrop-filter: blur(10px);
+}
+
+.hud-top-left {
+  top: 20px;
+  left: 20px;
+}
+
+.hud-top-right {
+  top: 20px;
+  right: 20px;
+}
+
+.hud-bottom-left {
+  bottom: 20px;
+  left: 20px;
+}
+
+.hud-bottom-center {
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+/* Stats display */
+.stats-panel {
+  font-size: 0.9rem;
+  color: rgba(200, 220, 255, 0.9);
+}
+
+.stats-panel h3 {
+  color: #80c0ff;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 0.5rem;
+}
+
+.stat-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 2rem;
+  margin-bottom: 0.3rem;
+}
+
+.stat-label {
+  color: rgba(150, 180, 220, 0.7);
+}
+
+.stat-value {
+  color: #ffffff;
+  font-weight: 500;
+}
+
+/* Crosshair */
+.crosshair {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 30px;
+  height: 30px;
+  border: 2px solid rgba(200, 220, 255, 0.5);
+  border-radius: 50%;
+}
+
+.crosshair::before,
+.crosshair::after {
+  content: '';
+  position: absolute;
+  background: rgba(200, 220, 255, 0.5);
+}
+
+.crosshair::before {
+  width: 2px;
+  height: 10px;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.crosshair::after {
+  width: 10px;
+  height: 2px;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+/* Button Styles */
+.game-button {
+  background: linear-gradient(180deg, rgba(60, 100, 180, 0.8) 0%, rgba(40, 70, 140, 0.9) 100%);
+  border: 1px solid rgba(100, 150, 255, 0.5);
+  border-radius: 6px;
+  padding: 0.8rem 1.5rem;
+  color: #ffffff;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  pointer-events: auto;
+}
+
+.game-button:hover {
+  background: linear-gradient(180deg, rgba(80, 130, 220, 0.9) 0%, rgba(60, 100, 180, 0.95) 100%);
+  border-color: rgba(150, 200, 255, 0.7);
+  box-shadow: 0 0 20px rgba(100, 150, 255, 0.4);
+}
+
+.game-button:active {
+  transform: scale(0.98);
+}
+
+/* Info panels */
+.info-panel {
+  max-width: 300px;
+}
+
+.info-panel h2 {
+  font-size: 1.2rem;
+  color: #80c0ff;
+  margin-bottom: 0.5rem;
+}
+
+.info-panel p {
+  font-size: 0.9rem;
+  color: rgba(200, 220, 255, 0.8);
+  line-height: 1.6;
+}
+
+/* Tooltip */
+.tooltip {
+  position: absolute;
+  background: rgba(0, 20, 40, 0.95);
+  border: 1px solid rgba(100, 150, 255, 0.5);
+  border-radius: 6px;
+  padding: 0.8rem 1rem;
+  max-width: 250px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  z-index: 1000;
+}
+
+.tooltip.visible {
+  opacity: 1;
+}
+
+/* Notifications */
+.notification {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 40, 80, 0.9);
+  border: 1px solid rgba(100, 200, 255, 0.5);
+  border-radius: 8px;
+  padding: 1rem 2rem;
+  color: #ffffff;
+  font-size: 1rem;
+  z-index: 1000;
+  animation: notificationIn 0.5s ease-out;
+}
+
+@keyframes notificationIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+/* Controls guide */
+.controls-guide {
+  font-size: 0.8rem;
+  color: rgba(150, 180, 220, 0.8);
+}
+
+.controls-guide kbd {
+  display: inline-block;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  padding: 0.2rem 0.5rem;
+  margin: 0.1rem;
+  font-family: inherit;
+}
