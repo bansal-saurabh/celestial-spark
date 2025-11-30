@@ -150,7 +150,8 @@ export class UIOverlay {
     this.statsPanel.addChild(title);
 
     this.statsPanel.x = 20;
-    this.statsPanel.y = 20;
+    // On mobile, position stats panel below the system info panel to avoid overlap
+    this.statsPanel.y = this.isMobile ? 90 : 20;
   }
 
   private createControlsPanel(): void {
@@ -483,6 +484,9 @@ Tip: Different star systems have unique stars and planets to discover!`;
     
     // Reposition elements
     this.controlsPanel.y = window.innerHeight - 150;
+    
+    // On mobile, reposition stats panel below system info
+    this.statsPanel.y = this.isMobile ? 90 : 20;
     
     if (this.planetInfoPanel.children.length > 0) {
       this.planetInfoPanel.x = window.innerWidth - 240;

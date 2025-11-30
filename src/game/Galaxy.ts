@@ -51,7 +51,10 @@ export class Galaxy {
   }
 
   private generateSystemConfig(index: number): SolarSystemConfig {
-    const seed = (this.config.seed || 12345) + index * 1000;
+    // Use a more varied seed calculation to ensure diverse star types
+    // Mixing the index with a prime multiplier creates better distribution
+    const baseSeed = this.config.seed || 12345;
+    const seed = this.hashSeed(baseSeed, index);
     const random = this.seededRandom(seed);
 
     // Select star type with weighted probability
@@ -120,6 +123,16 @@ export class Galaxy {
       state = (state * 1103515245 + 12345) & 0x7fffffff;
       return state / 0x7fffffff;
     };
+  }
+
+  // Hash function to create better seed distribution for each system
+  private hashSeed(baseSeed: number, index: number): number {
+    // Mix the base seed with the index using prime multipliers for better distribution
+    let hash = baseSeed;
+    hash = ((hash << 5) - hash + index * 7919) | 0; // 7919 is a prime
+    hash = ((hash << 7) - hash + index * 104729) | 0; // 104729 is another prime
+    hash = ((hash * 2654435769) >>> 0) ^ (index * 65537); // Golden ratio multiplier
+    return Math.abs(hash);
   }
 
   async travelToSystem(index: number): Promise<void> {
