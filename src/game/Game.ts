@@ -189,6 +189,10 @@ export class Game {
     camera.angularSensibilityX = 500;
     camera.angularSensibilityY = 500;
     
+    // Limit vertical rotation to prevent rendering issues at extreme angles
+    camera.lowerBetaLimit = 0.1;
+    camera.upperBetaLimit = Math.PI - 0.1;
+    
     // Improved touch controls for mobile
     if (this.isMobile) {
       // Better pinch-to-zoom sensitivity
