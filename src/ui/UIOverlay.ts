@@ -207,7 +207,7 @@ Tip: Planets further from the sun are worth more points when ignited!`,
     });
 
     const stats = [
-      { label: 'Ignited:', value: `${this.gameState.getIgitedCount()}/${this.gameState.getTotalPlanets()}` },
+      { label: 'Ignited:', value: `${this.gameState.getIgnitedCount()}/${this.gameState.getTotalPlanets()}` },
       { label: 'Progress:', value: `${this.gameState.getProgress()}%` },
       { label: 'Score:', value: this.gameState.getScore().toLocaleString() },
       { label: 'Time:', value: this.gameState.getFormattedPlayTime() },

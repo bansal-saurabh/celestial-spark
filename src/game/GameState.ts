@@ -47,7 +47,7 @@ export class GameState {
     return this.discoveredBodies;
   }
 
-  getIgitedCount(): number {
+  getIgnitedCount(): number {
     return this.ignitedCount;
   }
 
